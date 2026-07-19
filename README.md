@@ -285,8 +285,6 @@ docker run --rm \
 │   ├── pastau/
 │   ├── augsso/
 │   └── upspa-quorum/
-├── scripts/
-├── results/
 ├── Dockerfile
 └── LICENSE
 ```
