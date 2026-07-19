@@ -1,0 +1,5 @@
+.git
+target
+results/*.dat
+results/*.txt
+

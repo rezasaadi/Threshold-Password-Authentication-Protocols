@@ -1,0 +1,5 @@
+/target/
+/results/*.dat
+/results/*.txt
+*.tmp
+

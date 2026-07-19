@@ -1,0 +1,33 @@
+[package]
+name = "upspa-unified-benchmark"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "bench_unified"
+path = "src/bin/bench_unified.rs"
+
+[dependencies]
+augsso_bench = { path = "crates/augsso" }
+pastau_bench = { path = "crates/pastau" }
+upspa_bench = { path = "crates/upspa" }
+upspa_quorum_bench = { path = "crates/upspa-quorum" }
+
+[workspace]
+members = [
+    ".",
+    "crates/augsso",
+    "crates/pastau",
+    "crates/upspa",
+    "crates/upspa-quorum",
+]
+resolver = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
