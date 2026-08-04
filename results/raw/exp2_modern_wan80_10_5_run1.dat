@@ -1,0 +1,3 @@
+profile experiment metric network n t samples warmup min_ns p50_ns p95_ns max_ns mean_ns stddev_ns
+modern exp2 token_generation_tcp wan80 10 5 100 100 83297191 85080532 96092809 98886492 86861378.320 4068458.767
+modern exp2 password_update_tcp wan80 10 5 100 100 334365105 351151907 371150922 373460231 351923354.840 11612808.537

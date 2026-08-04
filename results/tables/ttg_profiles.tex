@@ -1,0 +1,22 @@
+\begin{table}[t]
+\centering
+\caption{Isolated TTG costs for the modern and paper-style Rust PAS-TA-U profiles. Times are arithmetic means in milliseconds.}
+\label{tab:pastau-ttg-profiles}
+\begin{tabular}{c l l r r r}
+\toprule
+$(t,n)$ & Implementation & TTG & PartEval/SP & Combine/client & Verify \\
+\midrule
+$(2,3)$ & Modern Rust PAS-TA-U & BLS12-381 & 0.461 & 0.474 & 2.184 \\
+$(2,3)$ & Paper-style Rust PAS-TA-U & Shoup RSA-2048 & 2.484 & 1.163 & 0.089 \\
+$(3,6)$ & Modern Rust PAS-TA-U & BLS12-381 & 0.441 & 0.699 & 2.159 \\
+$(3,6)$ & Paper-style Rust PAS-TA-U & Shoup RSA-2048 & 2.538 & 1.285 & 0.091 \\
+$(5,10)$ & Modern Rust PAS-TA-U & BLS12-381 & 0.461 & 1.195 & 2.210 \\
+$(5,10)$ & Paper-style Rust PAS-TA-U & Shoup RSA-2048 & 2.494 & 1.915 & 0.094 \\
+$(10,10)$ & Modern Rust PAS-TA-U & BLS12-381 & 0.443 & 2.411 & 2.172 \\
+$(10,10)$ & Paper-style Rust PAS-TA-U & Shoup RSA-2048 & 2.494 & 3.498 & 0.090 \\
+\bottomrule
+\end{tabular}
+\begin{minipage}{0.96\linewidth}\footnotesize
+The published PAS-TA-U evaluation does not report isolated TTG PartEval, Combine, and Verify costs; it reports complete token-generation latency.
+\end{minipage}
+\end{table}

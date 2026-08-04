@@ -1,0 +1,3 @@
+profile experiment metric network n t samples warmup min_ns p50_ns p95_ns max_ns mean_ns stddev_ns
+paper_style exp3 ssh_sign_service lan4 3 2 100 100 18388140 19475049 20950486 21452950 19563209.040 606082.275
+paper_style exp3 ssh_handshake lan4 3 2 100 100 247634111 271261144 343518643 395548717 276989098.090 28577334.170

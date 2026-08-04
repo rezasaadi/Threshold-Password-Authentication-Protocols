@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{Token-generation comparison for the two Rust PAS-TA-U profiles and the published PAS-TA-U implementation. Rust e2e values are real TCP-socket measurements under Linux \texttt{tc}; published values use the original Python/OpenSSH environment.}
+\label{tab:pastau-token-generation-all-three}
+\begin{tabular}{l c r r r}
+\toprule
+Network & $(t,n)$ & Modern Rust & Paper-style Rust & Published PAS-TA-U \\
+\midrule
+LAN4 & $(2,3)$ & 5.948 & 19.559 & 22.8 \\
+LAN4 & $(3,6)$ & 6.451 & 19.698 & 25.1 \\
+LAN4 & $(5,10)$ & 7.157 & 23.322 & 28.2 \\
+LAN4 & $(10,10)$ & 9.696 & 38.075 & 32.5 \\
+\midrule
+WAN80 & $(2,3)$ & 86.277 & 100.490 & 109.5 \\
+WAN80 & $(3,6)$ & 86.025 & 101.755 & 112.4 \\
+WAN80 & $(5,10)$ & 85.141 & 104.152 & 115.8 \\
+WAN80 & $(10,10)$ & 90.192 & 115.375 & 119.9 \\
+\bottomrule
+\end{tabular}
+\end{table}

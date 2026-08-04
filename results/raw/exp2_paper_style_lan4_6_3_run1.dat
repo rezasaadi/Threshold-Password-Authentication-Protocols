@@ -1,0 +1,3 @@
+profile experiment metric network n t samples warmup min_ns p50_ns p95_ns max_ns mean_ns stddev_ns
+paper_style exp2 token_generation_tcp lan4 6 3 100 100 18926280 19766251 21461548 21750433 19943546.540 667239.675
+paper_style exp2 password_update_tcp lan4 6 3 100 100 54255966 55968827 57560098 58767835 55966284.350 897552.291
