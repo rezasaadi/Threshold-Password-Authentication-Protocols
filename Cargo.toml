@@ -12,7 +12,10 @@ path = "src/bin/bench_unified.rs"
 
 [dependencies]
 augsso_bench = { path = "crates/augsso" }
+curve25519-dalek = { version = "4", features = ["alloc", "rand_core"] }
 pastau_bench = { path = "crates/pastau" }
+rand_chacha = "0.3"
+rand_core = "0.6"
 upspa_bench = { path = "crates/upspa" }
 upspa_quorum_bench = { path = "crates/upspa-quorum" }
 
@@ -23,6 +26,7 @@ members = [
     "crates/pastau",
     "crates/upspa",
     "crates/upspa-quorum",
+    "pastau_paper",
 ]
 resolver = "2"
 
@@ -30,4 +34,3 @@ resolver = "2"
 lto = true
 codegen-units = 1
 panic = "abort"
-
