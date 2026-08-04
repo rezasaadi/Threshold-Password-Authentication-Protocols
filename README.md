@@ -9,9 +9,28 @@ This repository provides one reproducible Rust benchmark for four password-authe
 | `augsso` | registration-corrected AUGSSO with password update | setup, registration, authentication, password update |
 | `upspa-quorum` | admissible ABD-style quorum variation of UpSPA | registration, secret update, password update |
 
-`bench_unified` is the only executable interface. It validates one parameter grid, applies the same timing and network settings to every selected scheme, runs the scheme engines sequentially, and writes one normalized whitespace-separated result file.
+`bench_unified` is the primary cross-protocol interface. It validates one parameter grid, applies the same timing and network settings to every selected scheme, runs the scheme engines sequentially, and writes one normalized whitespace-separated result file. Dedicated PAS-TA-U binaries under `src/bin/` and `pastau_paper/src/bin/` reproduce the three-way validation described below.
 
 The code is intended for research benchmarking and protocol comparison. It is not a production authentication service.
+
+## PAS-TA-U three-way validation
+
+The repository now includes a completed comparison of:
+
+- **Modern Rust PAS-TA-U**: Reza Saadi's BLS12-381 implementation in `crates/pastau`;
+- **Paper-style Rust PAS-TA-U**: a Rust reproduction of the paper's Shoup RSA-2048 profile in `pastau_paper`;
+- **Published PAS-TA-U**: the values reported by the original PAS-TA-U paper from its Python/OpenSSH environment.
+
+The evaluation covers `(n,t) = (3,2), (6,3), (10,5), (10,10)`, with 100 warm-ups, 100 timed samples, and three independent runs. The real-network tests use TCP sockets and Linux `tc` at 4 ms and 80 ms RTT. The OpenSSH test authenticates through a minimal paper-style threshold SSH agent.
+
+| Measurement | Modern Rust range | Paper-style Rust range | Published range |
+|---|---:|---:|---:|
+| Complete token generation | 5.948–90.192 ms | 19.559–115.375 ms | 22.8–119.9 ms |
+| Complete password update | 25.532–345.343 ms | 54.780–416.835 ms | 65.3–357.6 ms |
+| OpenSSH sign service | — | 20.027–75.808 ms | — |
+| Complete SSH handshake | — | 283.133–1370.666 ms | — |
+
+See [`results/README.md`](results/README.md) for every result, [`results/raw/`](results/raw/) for the preserved measurements, and [`experiments/README.md`](experiments/README.md) for reproduction instructions. The published column is a cross-environment reference rather than a same-machine rerun. The paper does not report isolated PartEval, Combine, and Verify measurements, so those tables compare only the two Rust profiles.
 
 ## Quick start
 
@@ -277,19 +296,28 @@ docker run --rm \
 
 ```text
 .
-├── Cargo.toml
-├── Cargo.lock
-├── src/bin/bench_unified.rs
-├── crates/
-│   ├── upspa/
-│   ├── pastau/
-│   ├── augsso/
-│   └── upspa-quorum/
-├── Dockerfile
-└── LICENSE
+|-- Cargo.toml
+|-- Cargo.lock
+|-- src/bin/
+|   |-- bench_unified.rs
+|   |-- bench_modern.rs
+|   `-- bench_modern_tcp.rs
+|-- crates/
+|   |-- upspa/
+|   |-- pastau/
+|   |-- augsso/
+|   `-- upspa-quorum/
+|-- pastau_paper/
+|   |-- src/bin/bench_paper.rs
+|   |-- src/bin/bench_paper_tcp.rs
+|   `-- src/bin/pastau_ssh_agent.rs
+|-- experiments/
+|-- results/
+|-- Dockerfile
+`-- LICENSE
 ```
 
-The four protocol crates are library-only implementation engines. They are not separate user-facing benchmark binaries. Generated `.dat` and `.txt` files under `results/` are ignored by Git.
+The four original protocol crates remain library implementation engines used by `bench_unified`. The dedicated modern and paper-style PAS-TA-U binaries exist only for the reproducible three-way experiment. Its raw measurements are intentionally versioned under `results/raw/`.
 
 ## Verification
 
@@ -299,9 +327,11 @@ Run the repository checks before publishing or tagging a paper artifact:
 cargo fmt --all -- --check
 cargo test --locked --workspace
 cargo build --locked --release --bin bench_unified
+cargo build --locked --release --bin bench_modern --bin bench_modern_tcp
+cargo build --locked --release --manifest-path pastau_paper/Cargo.toml \
+  --bin bench_paper --bin bench_paper_tcp --bin pastau_ssh_agent
+python3 experiments/process_results.py --root .
 ```
-
-The repository is initialized locally with no remote. Add a hosting remote only when ready to publish.
 
 ## License
 
