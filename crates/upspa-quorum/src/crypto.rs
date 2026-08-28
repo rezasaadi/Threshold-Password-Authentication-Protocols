@@ -9,11 +9,23 @@ use rand_core::RngCore;
 pub const NONCE_LEN: usize = 24;
 pub const TAG_LEN: usize = 16;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CtBlob<const PT_LEN: usize> {
     pub nonce: [u8; NONCE_LEN],
     pub ct: [u8; PT_LEN],
     pub tag: [u8; TAG_LEN],
+}
+
+impl<const PT_LEN: usize> CtBlob<PT_LEN> {
+    pub const ENCODED_LEN: usize = NONCE_LEN + PT_LEN + TAG_LEN;
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(Self::ENCODED_LEN);
+        out.extend_from_slice(&self.nonce);
+        out.extend_from_slice(&self.ct);
+        out.extend_from_slice(&self.tag);
+        out
+    }
 }
 
 pub fn hash_to_point(msg: &[u8]) -> RistrettoPoint {
@@ -87,6 +99,21 @@ pub fn hash_suid(rsp: &[u8; 32], lsj: &[u8], i: u32) -> [u8; 32] {
     h.update(rsp);
     h.update(lsj);
     h.update(&i.to_le_bytes());
+
+    let out = h.finalize();
+    let mut r = [0u8; 32];
+    r.copy_from_slice(out.as_bytes());
+    r
+}
+
+/// RoUpSPA's shared routing/synchronization identifier H(Rsp || LSj).
+///
+/// Unlike the UpSPA identifier, this intentionally has no provider index.
+pub fn hash_roupspa_suid(rsp: &[u8; 32], lsj: &[u8]) -> [u8; 32] {
+    let mut h = blake3::Hasher::new();
+    h.update(b"roupspa/suid/v1");
+    h.update(rsp);
+    h.update(lsj);
 
     let out = h.finalize();
     let mut r = [0u8; 32];
