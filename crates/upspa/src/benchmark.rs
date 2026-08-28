@@ -1,61 +1,582 @@
-#![allow(clippy::needless_range_loop)]
-
+use std::collections::BTreeMap;
 use std::fs::File;
-use std::hint::black_box;
-use std::io::{BufWriter, Write};
+use std::io::{self, BufWriter, Write};
 use std::time::Instant;
 
-use blake3;
-
-use rand_chacha::ChaCha20Rng;
-use rand_core::{RngCore, SeedableRng};
-
-use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
-use ed25519_dalek::{Signer, SigningKey};
-
-use tspa::crypto as up_crypto;
-use tspa::protocols::{sp as sp_mod, upspa as upspa_proto};
-
-use chacha20poly1305::{
-    aead::{AeadInPlace, KeyInit},
-    XChaCha20Poly1305, XNonce,
+use crate::protocols::{
+    DeterministicTestClock, MessageEvent, PhaseKind, ProtocolStage, ProtocolTrace, UpSpaSystem, WaitPolicy,
 };
 
+const HEADER: &str = "scheme phase kind net_profile nsp tsp qsp unavailable delivery_bound_ns samples warmup client_ns provider_ns login_server_ns network_ns total_ns identification_stage_ns account_read_stage_ns prepare_stage_ns write_stage_ns terminal_stage_ns request_bytes response_bytes message_count acknowledgement_count result rng_in_timed min_ns p50_ns p95_ns max_ns mean_ns stddev_ns";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Operation {
+    Setup,
+    Registration,
+    Authentication,
+    SecretUpdate,
+    PasswordUpdate,
+}
+
+impl Operation {
+    const ALL: [Self; 5] = [
+        Self::Setup,
+        Self::Registration,
+        Self::Authentication,
+        Self::SecretUpdate,
+        Self::PasswordUpdate,
+    ];
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Setup => "setup",
+            Self::Registration => "reg",
+            Self::Authentication => "auth",
+            Self::SecretUpdate => "secupd",
+            Self::PasswordUpdate => "pwdupd",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Kind {
+    Client,
+    Provider,
+    LoginServer,
+    FullNoNet,
+    NetOnly,
+    FullNet,
+}
+
+impl Kind {
+    const ALL: [Self; 6] = [
+        Self::Client,
+        Self::Provider,
+        Self::LoginServer,
+        Self::FullNoNet,
+        Self::NetOnly,
+        Self::FullNet,
+    ];
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Client => "client",
+            Self::Provider => "provider",
+            Self::LoginServer => "login_server",
+            Self::FullNoNet => "full_no_net",
+            Self::NetOnly => "net_only",
+            Self::FullNet => "full_net",
+        }
+    }
+
+    fn uses_network(self) -> bool {
+        matches!(self, Self::NetOnly | Self::FullNet)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct NetProfile {
+    name: &'static str,
+    one_way_ns: u64,
+    jitter_ns: u64,
+    bandwidth_bps: u64,
+    overhead_bytes: usize,
+}
+
 #[derive(Clone, Debug)]
-struct Stats {
-    n: usize,
-    min_ns: u128,
-    p50_ns: u128,
-    p95_ns: u128,
-    max_ns: u128,
+struct Config {
+    scheme_selected: bool,
+    kinds: Vec<Kind>,
+    operations: Vec<Operation>,
+    nsp: Vec<usize>,
+    tsp: Option<Vec<usize>>,
+    tsp_pct: Vec<u32>,
+    samples: usize,
+    warmup: usize,
+    output: String,
+    rng_in_timed: bool,
+    profiles: Vec<NetProfile>,
+    explicit_delivery_bound_ns: Option<u64>,
+}
+
+#[derive(Clone, Debug)]
+struct ProcessingSample {
+    processing_ns: u64,
+    client_ns: u64,
+    provider_ns: u64,
+    login_server_ns: u64,
+    trace: ProtocolTrace,
+}
+
+#[derive(Clone, Debug, Default)]
+struct NetworkCost {
+    total_ns: u64,
+    identification_ns: u64,
+    account_read_ns: u64,
+    prepare_ns: u64,
+    write_ns: u64,
+    terminal_ns: u64,
+}
+
+#[derive(Clone, Debug)]
+struct Sample {
+    client_ns: u64,
+    provider_ns: u64,
+    login_server_ns: u64,
+    network: NetworkCost,
+    total_ns: u64,
+}
+
+#[derive(Clone, Debug)]
+struct Summary {
+    client_ns: u64,
+    provider_ns: u64,
+    login_server_ns: u64,
+    network_ns: u64,
+    total_ns: u64,
+    identification_stage_ns: u64,
+    account_read_stage_ns: u64,
+    prepare_stage_ns: u64,
+    write_stage_ns: u64,
+    terminal_stage_ns: u64,
+    min_ns: u64,
+    p50_ns: u64,
+    p95_ns: u64,
+    max_ns: u64,
     mean_ns: f64,
     stddev_ns: f64,
 }
 
-fn compute_stats(mut xs: Vec<u128>) -> Stats {
-    xs.sort_unstable();
-    let n = xs.len();
-    let min_ns = xs[0];
-    let max_ns = xs[n - 1];
-    let p50_ns = xs[n / 2];
-    let p95_ns = xs[(n * 95) / 100];
-
-    let sum: f64 = xs.iter().map(|&x| x as f64).sum();
-    let mean_ns = sum / (n as f64);
-
-    let mut var = 0.0;
-    for &x in &xs {
-        let d = (x as f64) - mean_ns;
-        var += d * d;
+pub fn run(args: Vec<String>) -> io::Result<()> {
+    let config = parse_args(args).map_err(invalid_input)?;
+    let file = File::create(&config.output)?;
+    let mut output = BufWriter::new(file);
+    writeln!(output, "{HEADER}")?;
+    if !config.scheme_selected {
+        return output.flush();
     }
-    let stddev_ns = if n > 1 {
-        (var / ((n - 1) as f64)).sqrt()
+
+    for &nsp in &config.nsp {
+        let thresholds = thresholds_for(&config, nsp)?;
+        for tsp in thresholds {
+            for &operation in &config.operations {
+                for &kind in &config.kinds {
+                    if kind.uses_network() {
+                        for &profile in &config.profiles {
+                            write_benchmark_row(
+                                &mut output,
+                                &config,
+                                operation,
+                                kind,
+                                nsp,
+                                tsp,
+                                Some(profile),
+                            )?;
+                        }
+                    } else {
+                        write_benchmark_row(&mut output, &config, operation, kind, nsp, tsp, None)?;
+                    }
+                }
+            }
+        }
+    }
+    output.flush()
+}
+
+fn write_benchmark_row(
+    output: &mut BufWriter<File>,
+    config: &Config,
+    operation: Operation,
+    kind: Kind,
+    nsp: usize,
+    tsp: usize,
+    profile: Option<NetProfile>,
+) -> io::Result<()> {
+    for iteration in 0..config.warmup {
+        let processing =
+            execute_processing_sample(operation, nsp, tsp, iteration as u64).map_err(invalid_input)?;
+        let delivery_bound =
+            delivery_bound_for(config.explicit_delivery_bound_ns, profile, &processing.trace);
+        let _ = compose_sample(
+            kind,
+            processing,
+            profile,
+            delivery_bound,
+            seed_u64(operation, nsp, tsp, iteration as u64, b"warmup"),
+        );
+    }
+
+    let mut samples = Vec::with_capacity(config.samples);
+    let mut representative_trace = None;
+    let mut chosen_delivery_bound = 0;
+    for iteration in 0..config.samples {
+        let processing = execute_processing_sample(operation, nsp, tsp, (config.warmup + iteration) as u64)
+            .map_err(invalid_input)?;
+        let delivery_bound =
+            delivery_bound_for(config.explicit_delivery_bound_ns, profile, &processing.trace);
+        chosen_delivery_bound = delivery_bound;
+        representative_trace.get_or_insert_with(|| processing.trace.clone());
+        samples.push(compose_sample(
+            kind,
+            processing,
+            profile,
+            delivery_bound,
+            seed_u64(operation, nsp, tsp, iteration as u64, b"sample"),
+        ));
+    }
+    let trace = representative_trace.expect("sample count was validated");
+    let summary = summarize(&samples);
+    writeln!(
+        output,
+        "upspa {} {} {} {} {} {} 0 {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} completed {} {} {} {} {} {:.3} {:.3}",
+        operation.name(),
+        kind.name(),
+        profile.map(|value| value.name).unwrap_or("none"),
+        nsp,
+        tsp,
+        nsp,
+        chosen_delivery_bound,
+        config.samples,
+        config.warmup,
+        summary.client_ns,
+        summary.provider_ns,
+        summary.login_server_ns,
+        summary.network_ns,
+        summary.total_ns,
+        summary.identification_stage_ns,
+        summary.account_read_stage_ns,
+        summary.prepare_stage_ns,
+        summary.write_stage_ns,
+        summary.terminal_stage_ns,
+        trace.request_bytes(),
+        trace.response_bytes(),
+        trace.message_count(),
+        trace.acknowledgement_count(),
+        if config.rng_in_timed { 1 } else { 0 },
+        summary.min_ns,
+        summary.p50_ns,
+        summary.p95_ns,
+        summary.max_ns,
+        summary.mean_ns,
+        summary.stddev_ns,
+    )
+}
+
+fn execute_processing_sample(
+    operation: Operation,
+    nsp: usize,
+    tsp: usize,
+    iteration: u64,
+) -> Result<ProcessingSample, String> {
+    let clock = DeterministicTestClock::new(iteration.saturating_add(1));
+    let seed = seed_bytes(operation, nsp, tsp, iteration, b"fixture");
+    let mut system =
+        UpSpaSystem::with_seed_and_clock(nsp, tsp, seed, clock).map_err(|error| error.to_string())?;
+    let uid = b"benchmark-user";
+    let password = b"benchmark password";
+    let new_password = b"new benchmark password";
+    let lsj = b"benchmark-login-server";
+
+    match operation {
+        Operation::Setup => {
+            let start = Instant::now();
+            let outcome = system.setup(uid, password).map_err(|error| error.to_string())?;
+            let processing_ns = elapsed_ns(start);
+            assert_eq!(outcome.phase, PhaseKind::Setup);
+            assert_eq!(outcome.result, crate::protocols::PhaseResult::Completed);
+            assert!(system.providers.iter().all(|provider| {
+                provider.identification_record(uid).is_some()
+                    && provider.pending_identification(uid).is_none()
+            }));
+            Ok(processing_sample(processing_ns, outcome.trace))
+        }
+        Operation::Registration => {
+            system.setup(uid, password).map_err(|error| error.to_string())?;
+            let start = Instant::now();
+            let outcome = system
+                .registration(uid, password, lsj)
+                .map_err(|error| error.to_string())?;
+            let processing_ns = elapsed_ns(start);
+            assert_eq!(outcome.phase, PhaseKind::Registration);
+            assert_eq!(outcome.result, crate::protocols::PhaseResult::Completed);
+            assert!(!system.has_pending_finalization(uid));
+            let root = system
+                .identify(
+                    uid,
+                    password,
+                    crate::protocols::IdentificationRequirement::AllProviders,
+                )
+                .map_err(|error| error.to_string())?
+                .state;
+            assert!(system.providers.iter().all(|provider| {
+                let suid = crate::crypto::hash_upspa_suid(&root.rsp, lsj, provider.provider_index());
+                provider
+                    .account_slot(&suid)
+                    .is_some_and(|slot| slot.committed.is_some() && slot.pending.is_none())
+            }));
+            assert!(system.login_server.current_vinfo(uid).is_some());
+            Ok(processing_sample(processing_ns, outcome.trace))
+        }
+        Operation::Authentication => {
+            system.setup(uid, password).map_err(|error| error.to_string())?;
+            system
+                .registration(uid, password, lsj)
+                .map_err(|error| error.to_string())?;
+            let start = Instant::now();
+            let outcome = system
+                .authentication(uid, password, lsj)
+                .map_err(|error| error.to_string())?;
+            let processing_ns = elapsed_ns(start);
+            if !outcome.authenticated {
+                return Err("authentication benchmark fixture was rejected".into());
+            }
+            assert_eq!(outcome.selected_counter, 0);
+            assert!(!system.has_pending_finalization(uid));
+            Ok(processing_sample(processing_ns, outcome.trace))
+        }
+        Operation::SecretUpdate => {
+            system.setup(uid, password).map_err(|error| error.to_string())?;
+            system
+                .registration(uid, password, lsj)
+                .map_err(|error| error.to_string())?;
+            let start = Instant::now();
+            let outcome = system
+                .secret_update(uid, password, lsj)
+                .map_err(|error| error.to_string())?;
+            assert_eq!(outcome.phase, PhaseKind::SecretUpdate);
+            assert_eq!(outcome.result, crate::protocols::PhaseResult::Completed);
+            let processing_ns = elapsed_ns(start);
+            assert!(!system.has_pending_finalization(uid));
+            let auth = system
+                .authentication(uid, password, lsj)
+                .map_err(|error| error.to_string())?;
+            assert!(auth.authenticated);
+            assert_eq!(auth.selected_counter, 1);
+            Ok(processing_sample(processing_ns, outcome.trace))
+        }
+        Operation::PasswordUpdate => {
+            system.setup(uid, password).map_err(|error| error.to_string())?;
+            let old_records = system
+                .providers
+                .iter()
+                .map(|provider| provider.identification_record(uid).unwrap().clone())
+                .collect::<Vec<_>>();
+            let start = Instant::now();
+            let outcome = system
+                .password_update(uid, password, new_password)
+                .map_err(|error| error.to_string())?;
+            assert_eq!(outcome.phase, PhaseKind::PasswordUpdate);
+            assert_eq!(outcome.result, crate::protocols::PhaseResult::Completed);
+            let processing_ns = elapsed_ns(start);
+            assert!(!system.has_pending_finalization(uid));
+            assert!(system
+                .identify(
+                    uid,
+                    password,
+                    crate::protocols::IdentificationRequirement::Threshold,
+                )
+                .is_err());
+            let new_root = system
+                .identify(
+                    uid,
+                    new_password,
+                    crate::protocols::IdentificationRequirement::AllProviders,
+                )
+                .map_err(|error| error.to_string())?
+                .state;
+            assert!(system.providers.iter().zip(old_records).all(|(provider, old)| {
+                let current = provider.identification_record(uid).unwrap();
+                current.cid == new_root.cid
+                    && current.share != old.share
+                    && current.last_password_update_time > old.last_password_update_time
+                    && provider.pending_identification(uid).is_none()
+            }));
+            Ok(processing_sample(processing_ns, outcome.trace))
+        }
+    }
+}
+
+fn processing_sample(processing_ns: u64, trace: ProtocolTrace) -> ProcessingSample {
+    let provider_ns = trace.provider_processing_ns().min(processing_ns);
+    let login_server_ns = trace
+        .login_server_processing_ns()
+        .min(processing_ns.saturating_sub(provider_ns));
+    let client_ns = processing_ns.saturating_sub(provider_ns.saturating_add(login_server_ns));
+    ProcessingSample {
+        processing_ns,
+        client_ns,
+        provider_ns,
+        login_server_ns,
+        trace,
+    }
+}
+
+fn compose_sample(
+    kind: Kind,
+    processing: ProcessingSample,
+    profile: Option<NetProfile>,
+    delivery_bound_ns: u64,
+    jitter_seed: u64,
+) -> Sample {
+    let network = profile
+        .map(|profile| simulate_trace(&processing.trace, profile, delivery_bound_ns, jitter_seed))
+        .unwrap_or_default();
+    let included_network = if kind.uses_network() { network.total_ns } else { 0 };
+    let (client_ns, provider_ns, login_server_ns) = match kind {
+        Kind::Client => (processing.client_ns, 0, 0),
+        Kind::Provider => (0, processing.provider_ns, 0),
+        Kind::LoginServer => (0, 0, processing.login_server_ns),
+        Kind::FullNoNet | Kind::FullNet => (
+            processing.client_ns,
+            processing.provider_ns,
+            processing.login_server_ns,
+        ),
+        Kind::NetOnly => (0, 0, 0),
+    };
+    let included_processing = match kind {
+        Kind::Client => processing.client_ns,
+        Kind::Provider => processing.provider_ns,
+        Kind::LoginServer => processing.login_server_ns,
+        Kind::FullNoNet | Kind::FullNet => processing.processing_ns,
+        Kind::NetOnly => 0,
+    };
+    Sample {
+        client_ns,
+        provider_ns,
+        login_server_ns,
+        network,
+        total_ns: included_processing.saturating_add(included_network),
+    }
+}
+
+fn simulate_trace(
+    trace: &ProtocolTrace,
+    profile: NetProfile,
+    delivery_bound_ns: u64,
+    jitter_seed: u64,
+) -> NetworkCost {
+    let mut by_stage: BTreeMap<u32, Vec<&MessageEvent>> = BTreeMap::new();
+    for event in &trace.events {
+        by_stage.entry(event.stage_id).or_default().push(event);
+    }
+    let mut output = NetworkCost::default();
+    let mut state = jitter_seed;
+    for events in by_stage.values() {
+        let mut stage_duration = 0;
+        for event in events {
+            let cost = event_network_cost(event, profile, delivery_bound_ns, &mut state);
+            stage_duration = stage_duration.max(cost);
+        }
+        output.total_ns = output.total_ns.saturating_add(stage_duration);
+        match events[0].stage {
+            ProtocolStage::Identification => {
+                output.identification_ns = output.identification_ns.saturating_add(stage_duration)
+            }
+            ProtocolStage::AccountRead | ProtocolStage::LoginServerAuthentication => {
+                output.account_read_ns = output.account_read_ns.saturating_add(stage_duration)
+            }
+            ProtocolStage::ParallelProviderAndLsPrepare => {
+                output.prepare_ns = output.prepare_ns.saturating_add(stage_duration)
+            }
+            ProtocolStage::Setup | ProtocolStage::AllProviderPendingWrites => {
+                output.write_ns = output.write_ns.saturating_add(stage_duration)
+            }
+            ProtocolStage::ParallelTerminalAndProviderFinalAcks | ProtocolStage::AllProviderTerminalAcks => {
+                output.terminal_ns = output.terminal_ns.saturating_add(stage_duration)
+            }
+        }
+    }
+    output
+}
+
+fn event_network_cost(
+    event: &MessageEvent,
+    profile: NetProfile,
+    delivery_bound_ns: u64,
+    jitter_state: &mut u64,
+) -> u64 {
+    if event.recipient_count == 0 {
+        return 0;
+    }
+    let request_tx = tx_time_ns(
+        event.request_bytes.saturating_add(profile.overhead_bytes),
+        profile.bandwidth_bps,
+    )
+    .saturating_mul(event.recipient_count as u64);
+    if matches!(event.wait_policy, WaitPolicy::OneWayDeliveryBound) {
+        return request_tx.max(delivery_bound_ns);
+    }
+    let required_responses = match event.wait_policy {
+        WaitPolicy::AllResponses => event.recipient_count,
+        WaitPolicy::Threshold(value) | WaitPolicy::Quorum(value) => value.min(event.recipient_count),
+        WaitPolicy::OneWayDeliveryBound => 0,
+    };
+    let response_tx = tx_time_ns(
+        event.response_bytes.saturating_add(profile.overhead_bytes),
+        profile.bandwidth_bps,
+    )
+    .saturating_mul(required_responses as u64);
+    request_tx
+        .saturating_add(profile.one_way_ns)
+        .saturating_add(sample_positive_jitter(profile.jitter_ns, jitter_state))
+        .saturating_add(response_tx)
+        .saturating_add(profile.one_way_ns)
+        .saturating_add(sample_positive_jitter(profile.jitter_ns, jitter_state))
+}
+
+fn delivery_bound_for(explicit: Option<u64>, profile: Option<NetProfile>, trace: &ProtocolTrace) -> u64 {
+    if let Some(value) = explicit {
+        return value;
+    }
+    let Some(profile) = profile else {
+        return 0;
+    };
+    let largest_terminal_message = trace
+        .events
+        .iter()
+        .filter(|event| matches!(event.wait_policy, WaitPolicy::OneWayDeliveryBound))
+        .map(|event| event.request_bytes)
+        .max()
+        .unwrap_or(0);
+    profile
+        .one_way_ns
+        .saturating_add(profile.jitter_ns)
+        .saturating_add(tx_time_ns(
+            largest_terminal_message.saturating_add(profile.overhead_bytes),
+            profile.bandwidth_bps,
+        ))
+}
+
+fn summarize(samples: &[Sample]) -> Summary {
+    let totals = samples.iter().map(|sample| sample.total_ns).collect::<Vec<_>>();
+    let min_ns = *totals.iter().min().unwrap();
+    let max_ns = *totals.iter().max().unwrap();
+    let p50_ns = percentile(&totals, 50);
+    let p95_ns = percentile(&totals, 95);
+    let mean_ns = totals.iter().map(|value| *value as f64).sum::<f64>() / totals.len() as f64;
+    let stddev_ns = if totals.len() > 1 {
+        let sum = totals
+            .iter()
+            .map(|value| {
+                let delta = *value as f64 - mean_ns;
+                delta * delta
+            })
+            .sum::<f64>();
+        (sum / (totals.len() - 1) as f64).sqrt()
     } else {
         0.0
     };
-
-    Stats {
-        n,
+    Summary {
+        client_ns: median(samples.iter().map(|sample| sample.client_ns)),
+        provider_ns: median(samples.iter().map(|sample| sample.provider_ns)),
+        login_server_ns: median(samples.iter().map(|sample| sample.login_server_ns)),
+        network_ns: median(samples.iter().map(|sample| sample.network.total_ns)),
+        total_ns: p50_ns,
+        identification_stage_ns: median(samples.iter().map(|sample| sample.network.identification_ns)),
+        account_read_stage_ns: median(samples.iter().map(|sample| sample.network.account_read_ns)),
+        prepare_stage_ns: median(samples.iter().map(|sample| sample.network.prepare_ns)),
+        write_stage_ns: median(samples.iter().map(|sample| sample.network.write_ns)),
+        terminal_stage_ns: median(samples.iter().map(|sample| sample.network.terminal_ns)),
         min_ns,
         p50_ns,
         p95_ns,
@@ -65,2182 +586,412 @@ fn compute_stats(mut xs: Vec<u128>) -> Stats {
     }
 }
 
-fn write_header(out: &mut BufWriter<File>) -> std::io::Result<()> {
-    writeln!(
-        out,
-        "scheme kind op rng_in_timed nsp tsp samples warmup min_ns p50_ns p95_ns max_ns mean_ns stddev_ns"
-    )
+fn percentile(values: &[u64], percentile: usize) -> u64 {
+    let mut sorted = values.to_vec();
+    sorted.sort_unstable();
+    let index = ((sorted.len() - 1) * percentile + 99) / 100;
+    sorted[index]
 }
 
-fn write_row(
-    out: &mut BufWriter<File>,
-    scheme: &str,
-    kind: &str,
-    op: &str,
-    rng_in_timed: bool,
-    nsp: usize,
-    tsp: usize,
-    warmup: usize,
-    st: &Stats,
-) -> std::io::Result<()> {
-    writeln!(
-        out,
-        "{} {} {} {} {} {} {} {} {} {} {} {} {:.3} {:.3}",
-        scheme,
-        kind,
-        op,
-        if rng_in_timed { 1 } else { 0 },
-        nsp,
-        tsp,
-        st.n,
-        warmup,
-        st.min_ns,
-        st.p50_ns,
-        st.p95_ns,
-        st.max_ns,
-        st.mean_ns,
-        st.stddev_ns
-    )
+fn median(values: impl Iterator<Item = u64>) -> u64 {
+    let mut values = values.collect::<Vec<_>>();
+    values.sort_unstable();
+    values[values.len() / 2]
 }
 
-fn parse_list_usize(s: &str) -> Vec<usize> {
-    s.split(',')
-        .filter(|x| !x.trim().is_empty())
-        .map(|x| x.trim().parse::<usize>().expect("bad usize list element"))
-        .collect()
+fn elapsed_ns(start: Instant) -> u64 {
+    start.elapsed().as_nanos().min(u64::MAX as u128) as u64
 }
 
-fn parse_list_u32(s: &str) -> Vec<u32> {
-    s.split(',')
-        .filter(|x| !x.trim().is_empty())
-        .map(|x| x.trim().parse::<u32>().expect("bad u32 list element"))
-        .collect()
-}
-
-fn parse_list_string_lower(s: &str) -> Vec<String> {
-    s.split(',')
-        .filter(|x| !x.trim().is_empty())
-        .map(|x| x.trim().to_ascii_lowercase())
-        .collect()
-}
-
-fn seed_for(tag: &[u8], nsp: usize, tsp: usize) -> [u8; 32] {
-    let mut h = blake3::Hasher::new();
-    h.update(tag);
-    h.update(&(nsp as u64).to_le_bytes());
-    h.update(&(tsp as u64).to_le_bytes());
-    let out = h.finalize();
-    let mut seed = [0u8; 32];
-    seed.copy_from_slice(out.as_bytes());
-    seed
-}
-
-fn bench_u128(mut f: impl FnMut() -> u128, warmup: usize, samples: usize) -> Stats {
-    for _ in 0..warmup {
-        black_box(f());
-    }
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        xs.push(f());
-    }
-    compute_stats(xs)
-}
-
-fn time_call_ns<R>(mut f: impl FnMut() -> R) -> u64 {
-    let t0 = Instant::now();
-    let out = f();
-    black_box(out);
-    t0.elapsed().as_nanos() as u64
-}
-
-fn median_ns(mut xs: Vec<u64>) -> u64 {
-    xs.sort_unstable();
-    xs[xs.len() / 2]
-}
-
-#[derive(Clone, Copy)]
-struct NetProfile {
-    name: &'static str,
-
-    one_way_ns: u64,
-
-    jitter_ns: u64,
-
-    bw_bps: u64,
-
-    overhead_bytes: usize,
-}
-
-fn ms_to_ns(ms: f64) -> u64 {
-    if ms <= 0.0 {
-        0
-    } else {
-        (ms * 1_000_000.0).round() as u64
-    }
-}
-
-fn mbps_to_bps(mbps: f64) -> u64 {
-    if mbps <= 0.0 {
-        0
-    } else {
-        (mbps * 1_000_000.0).round() as u64
-    }
-}
-
-fn tx_time_ns(bytes: usize, bw_bps: u64) -> u64 {
-    if bw_bps == 0 {
+fn tx_time_ns(bytes: usize, bandwidth_bps: u64) -> u64 {
+    if bandwidth_bps == 0 {
         return 0;
     }
-    let bits = (bytes as u128) * 8u128;
-    let bw = bw_bps as u128;
-
-    let ns = (bits * 1_000_000_000u128 + bw - 1) / bw;
-    ns as u64
+    let bits = bytes as u128 * 8;
+    ((bits * 1_000_000_000 + bandwidth_bps as u128 - 1) / bandwidth_bps as u128).min(u64::MAX as u128) as u64
 }
 
-fn sample_jitter(rng: &mut impl RngCore, jitter_ns: u64) -> i64 {
-    if jitter_ns == 0 {
+fn sample_positive_jitter(maximum: u64, state: &mut u64) -> u64 {
+    if maximum == 0 {
         return 0;
     }
-
-    let span = (jitter_ns as u128) * 2 + 1;
-    let v = (rng.next_u64() as u128) % span;
-    (v as i128 - jitter_ns as i128) as i64
+    *state ^= *state << 13;
+    *state ^= *state >> 7;
+    *state ^= *state << 17;
+    *state % maximum.saturating_add(1)
 }
 
-fn add_signed_ns(base: u64, delta: i64) -> u64 {
-    if delta >= 0 {
-        base.saturating_add(delta as u64)
+fn seed_bytes(operation: Operation, nsp: usize, tsp: usize, iteration: u64, domain: &[u8]) -> [u8; 32] {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(b"upspa/authoritative-benchmark/v1");
+    hasher.update(domain);
+    hasher.update(operation.name().as_bytes());
+    hasher.update(&(nsp as u64).to_le_bytes());
+    hasher.update(&(tsp as u64).to_le_bytes());
+    hasher.update(&iteration.to_le_bytes());
+    *hasher.finalize().as_bytes()
+}
+
+fn seed_u64(operation: Operation, nsp: usize, tsp: usize, iteration: u64, domain: &[u8]) -> u64 {
+    let seed = seed_bytes(operation, nsp, tsp, iteration, domain);
+    u64::from_le_bytes(seed[..8].try_into().unwrap())
+}
+
+fn thresholds_for(config: &Config, nsp: usize) -> io::Result<Vec<usize>> {
+    let values = if let Some(explicit) = &config.tsp {
+        explicit.clone()
     } else {
-        base.saturating_sub((-delta) as u64)
-    }
-}
-
-fn simulate_parallel_phase(
-    k: usize,
-    req_payload_bytes: usize,
-    resp_payload_bytes: usize,
-    proc_ns: u64,
-    prof: NetProfile,
-    rng: &mut impl RngCore,
-) -> u64 {
-    if k == 0 {
-        return 0;
-    }
-
-    let req_total = req_payload_bytes + prof.overhead_bytes;
-    let resp_total = resp_payload_bytes + prof.overhead_bytes;
-
-    let tx_req = tx_time_ns(req_total, prof.bw_bps);
-    let tx_resp = tx_time_ns(resp_total, prof.bw_bps);
-
-    let mut arrivals: Vec<u64> = Vec::with_capacity(k);
-    let mut t_uplink_done = 0u64;
-    for _ in 0..k {
-        t_uplink_done = t_uplink_done.saturating_add(tx_req);
-        let j = sample_jitter(rng, prof.jitter_ns);
-        let t_arrive = add_signed_ns(t_uplink_done.saturating_add(prof.one_way_ns), j);
-        arrivals.push(t_arrive);
-    }
-
-    let mut ready: Vec<u64> = Vec::with_capacity(k);
-    for &a in &arrivals {
-        ready.push(a.saturating_add(proc_ns));
-    }
-
-    let mut down_arr: Vec<u64> = Vec::with_capacity(k);
-    for &rdy in &ready {
-        let j = sample_jitter(rng, prof.jitter_ns);
-
-        let t = add_signed_ns(rdy.saturating_add(tx_resp).saturating_add(prof.one_way_ns), j);
-        down_arr.push(t);
-    }
-
-    down_arr.sort_unstable();
-    let mut t_down_done = 0u64;
-    for a in down_arr {
-        if t_down_done < a {
-            t_down_done = a;
-        }
-        t_down_done = t_down_done.saturating_add(tx_resp);
-    }
-
-    t_down_done
-}
-
-#[derive(Clone, Copy, Debug)]
-struct ServerProcP50 {
-    up_toprf_eval_ns: u64,
-    up_db_get_ns: u64,
-    up_db_put_ns: u64,
-    up_pwdupd_apply_ns_v1: u64,
-    up_pwdupd_apply_ns_v2: u64,
-    up_setup_store_ns: u64,
-}
-
-fn measure_server_procs_p50(nsp: usize, tsp: usize, warmup: usize, samples: usize) -> ServerProcP50 {
-    use curve25519_dalek::scalar::Scalar;
-    use ed25519_dalek::{Signature, Verifier};
-
-    let fx_up = upspa_proto::make_fixture(nsp, tsp);
-
-    let mut up_prov =
-        sp_mod::UpSpaProvider::new(1, fx_up.shares[0].1, fx_up.sig_pk_bytes, fx_up.cipherid.clone());
-
-    let r = Scalar::from(5u64);
-    let blinded = (fx_up.pwd_point * r).compress().to_bytes();
-
-    for _ in 0..warmup {
-        black_box(up_prov.toprf_send_eval(&blinded));
-    }
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        xs.push(time_call_ns(|| {
-            let out = up_prov.toprf_send_eval(&blinded);
-            black_box(out);
-        }));
-    }
-    let up_toprf_eval_ns = median_ns(xs);
-
-    let mut key0 = [0u8; 32];
-    key0[0] = 1;
-    let blob0 = fx_up.ciphersp_per_sp[0].clone();
-
-    for i in 0..nsp {
-        let mut k = [0u8; 32];
-        k[0..8].copy_from_slice(&(i as u64).to_le_bytes());
-        up_prov.put_ciphersp(k, blob0.clone());
-    }
-
-    for _ in 0..warmup {
-        black_box(up_prov.get_ciphersp(&key0));
-    }
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        xs.push(time_call_ns(|| {
-            let out = up_prov.get_ciphersp(&key0);
-            black_box(out);
-        }));
-    }
-    let up_db_get_ns = median_ns(xs);
-
-    for _ in 0..warmup {
-        up_prov.put_ciphersp(key0, blob0.clone());
-        black_box(&up_prov);
-    }
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        xs.push(time_call_ns(|| {
-            up_prov.put_ciphersp(key0, blob0.clone());
-            black_box(&up_prov);
-        }));
-    }
-    let up_db_put_ns = median_ns(xs);
-
-    let mut rng2 = ChaCha20Rng::from_seed(seed_for(b"bench_unified/proc/up/pwdupd_v1", nsp, tsp));
-    let sid = SigningKey::generate(&mut rng2);
-    let sig_pk_bytes = sid.verifying_key().to_bytes();
-    let mut up_prov2 = sp_mod::UpSpaProvider::new(1, fx_up.shares[0].1, sig_pk_bytes, fx_up.cipherid.clone());
-
-    const MSG_LEN_V1: usize = 24 + upspa_proto::CIPHERID_PT_LEN + 16 + 32 + 8 + 4;
-    let mut msg_v1 = [0u8; MSG_LEN_V1];
-    let mut off = 0;
-    msg_v1[off..off + 24].copy_from_slice(&fx_up.cipherid.nonce);
-    off += 24;
-    msg_v1[off..off + upspa_proto::CIPHERID_PT_LEN].copy_from_slice(&fx_up.cipherid.ct);
-    off += upspa_proto::CIPHERID_PT_LEN;
-    msg_v1[off..off + 16].copy_from_slice(&fx_up.cipherid.tag);
-    off += 16;
-    msg_v1[off..off + 32].copy_from_slice(&fx_up.shares[0].1.to_bytes());
-    off += 32;
-    msg_v1[off..off + 8].copy_from_slice(&0u64.to_le_bytes());
-    off += 8;
-    msg_v1[off..off + 4].copy_from_slice(&1u32.to_le_bytes());
-    off += 4;
-    debug_assert_eq!(off, MSG_LEN_V1);
-
-    let sig_v1 = sid.sign(&msg_v1);
-
-    for _ in 0..warmup {
-        black_box(up_prov2.apply_password_update(&msg_v1, &sig_v1));
-    }
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        xs.push(time_call_ns(|| {
-            let ok = up_prov2.apply_password_update(&msg_v1, &sig_v1);
-            black_box(ok);
-        }));
-    }
-    let up_pwdupd_apply_ns_v1 = median_ns(xs);
-
-    const MSG_LEN_V2: usize = 24 + upspa_proto::CIPHERID_PT_LEN + 16 + 8;
-    let mut msg_v2 = [0u8; MSG_LEN_V2];
-    let mut off = 0;
-    msg_v2[off..off + 24].copy_from_slice(&fx_up.cipherid.nonce);
-    off += 24;
-    msg_v2[off..off + upspa_proto::CIPHERID_PT_LEN].copy_from_slice(&fx_up.cipherid.ct);
-    off += upspa_proto::CIPHERID_PT_LEN;
-    msg_v2[off..off + 16].copy_from_slice(&fx_up.cipherid.tag);
-    off += 16;
-    msg_v2[off..off + 8].copy_from_slice(&0u64.to_le_bytes());
-    off += 8;
-    debug_assert_eq!(off, MSG_LEN_V2);
-
-    let sig_v2: Signature = sid.sign(&msg_v2);
-
-    for _ in 0..warmup {
-        black_box(up_prov2.sig_pk.verify(&msg_v2, &sig_v2).is_ok());
-    }
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        xs.push(time_call_ns(|| {
-            let ok = up_prov2.sig_pk.verify(&msg_v2, &sig_v2).is_ok();
-            black_box(ok);
-        }));
-    }
-    let up_pwdupd_apply_ns_v2 = median_ns(xs);
-
-    for _ in 0..warmup {
-        let p = sp_mod::UpSpaProvider::new(1, fx_up.shares[0].1, fx_up.sig_pk_bytes, fx_up.cipherid.clone());
-        black_box(p);
-    }
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        xs.push(time_call_ns(|| {
-            let p =
-                sp_mod::UpSpaProvider::new(1, fx_up.shares[0].1, fx_up.sig_pk_bytes, fx_up.cipherid.clone());
-            black_box(p);
-        }));
-    }
-    let up_setup_store_ns = median_ns(xs);
-
-    ServerProcP50 {
-        up_toprf_eval_ns,
-        up_db_get_ns,
-        up_db_put_ns,
-        up_pwdupd_apply_ns_v1,
-        up_pwdupd_apply_ns_v2,
-        up_setup_store_ns,
-    }
-}
-
-fn upspa_aead_encrypt_fixed<const PT_LEN: usize>(
-    key: &[u8; 32],
-    aad: &[u8],
-    plaintext: &[u8; PT_LEN],
-    nonce: [u8; up_crypto::NONCE_LEN],
-) -> up_crypto::CtBlob<PT_LEN> {
-    let cipher = XChaCha20Poly1305::new_from_slice(key).unwrap();
-    let xnonce = XNonce::from_slice(&nonce);
-
-    let mut ct = *plaintext;
-    let tag = cipher.encrypt_in_place_detached(xnonce, aad, &mut ct).unwrap();
-
-    let mut tag_bytes = [0u8; up_crypto::TAG_LEN];
-    tag_bytes.copy_from_slice(tag.as_slice());
-
-    up_crypto::CtBlob {
-        nonce,
-        ct,
-        tag: tag_bytes,
-    }
-}
-
-fn upspa_recover_state_and_cipherid_pt(
-    fx: &upspa_proto::Fixture,
-    it: &upspa_proto::IterData,
-) -> ([u8; 32], [u8; upspa_proto::CIPHERID_PT_LEN]) {
-    let b = &fx.pwd_point * it.r;
-    black_box(b);
-
-    let state_key =
-        up_crypto::toprf_client_eval_from_partials(&fx.password, it.r, &it.partials, &fx.lagrange_at_zero);
-
-    let pt = up_crypto::xchacha_decrypt_detached(&state_key, &fx.cipherid_aad, &fx.cipherid)
-        .expect("cipherid must decrypt");
-
-    (state_key, pt)
-}
-
-fn upspa_extract_rsp_fk_sid(
-    cipherid_pt: &[u8; upspa_proto::CIPHERID_PT_LEN],
-) -> ([u8; 32], [u8; 32], SigningKey) {
-    let mut sid_bytes = [0u8; 32];
-    sid_bytes.copy_from_slice(&cipherid_pt[0..32]);
-
-    let mut rsp = [0u8; 32];
-    rsp.copy_from_slice(&cipherid_pt[32..64]);
-
-    let mut fk = [0u8; 32];
-    fk.copy_from_slice(&cipherid_pt[64..96]);
-
-    let sid = SigningKey::from_bytes(&sid_bytes);
-    (rsp, fk, sid)
-}
-
-fn upspa_precompute_reg_rng_outputs(r: Scalar) -> ([u8; 32], [u8; up_crypto::NONCE_LEN]) {
-    let mut seed = r.to_bytes();
-    seed[0] ^= 0xA5;
-    let mut rng = ChaCha20Rng::from_seed(seed);
-
-    let mut rlsj = [0u8; 32];
-    rng.fill_bytes(&mut rlsj);
-
-    let mut nonce = [0u8; up_crypto::NONCE_LEN];
-    rng.fill_bytes(&mut nonce);
-
-    (rlsj, nonce)
-}
-
-fn upspa_precompute_secu_rng_outputs(r: Scalar) -> ([u8; 32], [u8; up_crypto::NONCE_LEN]) {
-    let mut seed = r.to_bytes();
-    seed[0] ^= 0x3C;
-    let mut rng = ChaCha20Rng::from_seed(seed);
-
-    let mut new_rlsj = [0u8; 32];
-    rng.fill_bytes(&mut new_rlsj);
-
-    let mut nonce = [0u8; up_crypto::NONCE_LEN];
-    rng.fill_bytes(&mut nonce);
-
-    (new_rlsj, nonce)
-}
-
-fn upspa_precompute_pwdupd_coeffs_and_nonce(
-    r: Scalar,
-    tsp: usize,
-) -> (Vec<Scalar>, [u8; up_crypto::NONCE_LEN]) {
-    let mut seed = r.to_bytes();
-    seed[0] ^= 0x77;
-    let mut rng = ChaCha20Rng::from_seed(seed);
-
-    let mut coeffs = Vec::with_capacity(tsp);
-    for _ in 0..tsp {
-        coeffs.push(up_crypto::random_scalar(&mut rng));
-    }
-
-    let mut nonce = [0u8; up_crypto::NONCE_LEN];
-    rng.fill_bytes(&mut nonce);
-
-    (coeffs, nonce)
-}
-
-fn upspa_precompute_pwdupd_v2_nonce(r: Scalar) -> [u8; up_crypto::NONCE_LEN] {
-    let mut seed = r.to_bytes();
-    seed[0] ^= 0x78;
-    let mut rng = ChaCha20Rng::from_seed(seed);
-
-    let mut nonce = [0u8; up_crypto::NONCE_LEN];
-    rng.fill_bytes(&mut nonce);
-    nonce
-}
-
-fn eval_poly_pow(coeffs: &[Scalar], x: Scalar) -> Scalar {
-    let mut acc = Scalar::ZERO;
-    let mut pow = Scalar::ONE;
-    for c in coeffs {
-        acc += c * pow;
-        pow *= x;
-    }
-    acc
-}
-
-fn upspa_registration_no_rng(
-    fx: &upspa_proto::Fixture,
-    it: &upspa_proto::IterData,
-    rlsj: [u8; 32],
-    enc_nonce: [u8; up_crypto::NONCE_LEN],
-) -> [u8; 32] {
-    let (_state_key, cipherid_pt) = upspa_recover_state_and_cipherid_pt(fx, it);
-    let (rsp, fk, _sid) = upspa_extract_rsp_fk_sid(&cipherid_pt);
-
-    let mut acc = blake3::Hasher::new();
-    acc.update(b"uptspa/registration/acc/v1");
-
-    for i in 1..=fx.nsp {
-        let suid = up_crypto::hash_suid(&rsp, &fx.lsj, i as u32);
-        acc.update(suid.as_ref());
-    }
-
-    let ctr: u64 = 0;
-    let mut pt = [0u8; upspa_proto::CIPHERSP_PT_LEN];
-    pt[0..32].copy_from_slice(&rlsj);
-    pt[32..40].copy_from_slice(&ctr.to_le_bytes());
-    let cj = upspa_aead_encrypt_fixed(&fk, &fx.ciphersp_aad, &pt, enc_nonce);
-
-    let vinfo = up_crypto::hash_vinfo(&rlsj, &fx.lsj);
-    acc.update(vinfo.as_ref());
-    acc.update(&cj.nonce);
-    acc.update(&cj.ct);
-    acc.update(&cj.tag);
-
-    let out = acc.finalize();
-    let mut r = [0u8; 32];
-    r.copy_from_slice(out.as_bytes());
-    r
-}
-
-fn upspa_secu_no_rng(
-    fx: &upspa_proto::Fixture,
-    it: &upspa_proto::IterData,
-    new_rlsj: [u8; 32],
-    enc_nonce: [u8; up_crypto::NONCE_LEN],
-) -> [u8; 32] {
-    let (_state_key, cipherid_pt) = upspa_recover_state_and_cipherid_pt(fx, it);
-    let (rsp, fk, _sid) = upspa_extract_rsp_fk_sid(&cipherid_pt);
-
-    let mut acc = blake3::Hasher::new();
-    acc.update(b"uptspa/secret_update/acc/v3");
-
-    for i in 1..=fx.nsp {
-        let suid = up_crypto::hash_suid(&rsp, &fx.lsj, i as u32);
-        acc.update(suid.as_ref());
-    }
-
-    let mut old_ctr: u64 = 0;
-    let mut old_rlsj = [0u8; 32];
-    for &id in fx.ids_for_t.iter() {
-        let blob = &fx.ciphersp_per_sp[(id - 1) as usize];
-        let pt = up_crypto::xchacha_decrypt_detached(&fk, &fx.ciphersp_aad, blob).unwrap();
-
-        let mut rlsj = [0u8; 32];
-        rlsj.copy_from_slice(&pt[0..32]);
-
-        let mut ctr_bytes = [0u8; 8];
-        ctr_bytes.copy_from_slice(&pt[32..40]);
-        let ctr = u64::from_le_bytes(ctr_bytes);
-
-        if ctr >= old_ctr {
-            old_ctr = ctr;
-            old_rlsj = rlsj;
-        }
-    }
-
-    let vinfo_prime = up_crypto::hash_vinfo(&old_rlsj, &fx.lsj);
-    let new_ctr = old_ctr.wrapping_add(1);
-
-    let mut pt = [0u8; upspa_proto::CIPHERSP_PT_LEN];
-    pt[0..32].copy_from_slice(&new_rlsj);
-    pt[32..40].copy_from_slice(&new_ctr.to_le_bytes());
-    let newciphersp = upspa_aead_encrypt_fixed(&fk, &fx.ciphersp_aad, &pt, enc_nonce);
-
-    let newvinfo = up_crypto::hash_vinfo(&new_rlsj, &fx.lsj);
-
-    acc.update(&old_ctr.to_le_bytes());
-    acc.update(vinfo_prime.as_ref());
-    acc.update(&new_ctr.to_le_bytes());
-    acc.update(newvinfo.as_ref());
-    acc.update(&newciphersp.nonce);
-    acc.update(&newciphersp.ct);
-    acc.update(&newciphersp.tag);
-
-    let out = acc.finalize();
-    let mut r = [0u8; 32];
-    r.copy_from_slice(out.as_bytes());
-    r
-}
-
-fn upspa_pwdupd_no_rng(
-    fx: &upspa_proto::Fixture,
-    it: &upspa_proto::IterData,
-    coeffs: &[Scalar],
-    newcipherid_nonce: [u8; up_crypto::NONCE_LEN],
-) -> [u8; 32] {
-    let (_state_key, cipherid_pt) = upspa_recover_state_and_cipherid_pt(fx, it);
-    let (_rsp, _fk, sid) = upspa_extract_rsp_fk_sid(&cipherid_pt);
-
-    let mut acc = blake3::Hasher::new();
-    acc.update(b"uptspa/password_update/acc/v1");
-
-    let new_master_sk = coeffs[0];
-
-    let mut new_shares: Vec<(u32, Scalar)> = Vec::with_capacity(fx.nsp);
-    for i in 1..=fx.nsp {
-        let x = Scalar::from(i as u64);
-        let s = eval_poly_pow(coeffs, x);
-        new_shares.push((i as u32, s));
-    }
-
-    let p_new = up_crypto::hash_to_point(&fx.new_password);
-    let y_new = p_new * new_master_sk;
-    let new_state_key = up_crypto::oprf_finalize(&fx.new_password, &y_new);
-    let newcipherid =
-        upspa_aead_encrypt_fixed(&new_state_key, &fx.cipherid_aad, &cipherid_pt, newcipherid_nonce);
-
-    let timestamp: u64 = 0;
-    const MSG_LEN: usize = 24 + upspa_proto::CIPHERID_PT_LEN + 16 + 32 + 8 + 4;
-
-    for (id, share) in new_shares.iter() {
-        let i_u32 = *id;
-        let share_bytes = share.to_bytes();
-
-        let mut msg = [0u8; MSG_LEN];
-        let mut off = 0;
-        msg[off..off + 24].copy_from_slice(&newcipherid.nonce);
-        off += 24;
-        msg[off..off + upspa_proto::CIPHERID_PT_LEN].copy_from_slice(&newcipherid.ct);
-        off += upspa_proto::CIPHERID_PT_LEN;
-        msg[off..off + 16].copy_from_slice(&newcipherid.tag);
-        off += 16;
-        msg[off..off + 32].copy_from_slice(&share_bytes);
-        off += 32;
-        msg[off..off + 8].copy_from_slice(&timestamp.to_le_bytes());
-        off += 8;
-        msg[off..off + 4].copy_from_slice(&i_u32.to_le_bytes());
-        off += 4;
-
-        debug_assert_eq!(off, MSG_LEN);
-
-        let sig = sid.sign(&msg);
-        let sig_bytes = sig.to_bytes();
-
-        acc.update(&i_u32.to_le_bytes());
-        acc.update(&sig_bytes);
-    }
-
-    acc.update(&newcipherid.nonce);
-    acc.update(&newcipherid.ct);
-    acc.update(&newcipherid.tag);
-
-    let out = acc.finalize();
-    let mut r = [0u8; 32];
-    r.copy_from_slice(out.as_bytes());
-    r
-}
-
-fn upspa_pwdupd_v2_no_rng(
-    fx: &upspa_proto::Fixture,
-    it: &upspa_proto::IterData,
-    newcipherid_nonce: [u8; up_crypto::NONCE_LEN],
-) -> [u8; 32] {
-    let (_state_key, cipherid_pt) = upspa_recover_state_and_cipherid_pt(fx, it);
-    let (_rsp, _fk, sid) = upspa_extract_rsp_fk_sid(&cipherid_pt);
-
-    let p_new = up_crypto::hash_to_point(&fx.new_password);
-    let blinded_new = p_new * it.r;
-    black_box(blinded_new);
-
-    let mut partials_new: Vec<RistrettoPoint> = Vec::with_capacity(fx.tsp);
-    for &id in fx.ids_for_t.iter() {
-        let share = fx.shares[(id - 1) as usize].1;
-        partials_new.push(blinded_new * share);
-    }
-
-    let new_state_key = up_crypto::toprf_client_eval_from_partials(
-        &fx.new_password,
-        it.r,
-        &partials_new,
-        &fx.lagrange_at_zero,
-    );
-
-    let newcipherid =
-        upspa_aead_encrypt_fixed(&new_state_key, &fx.cipherid_aad, &cipherid_pt, newcipherid_nonce);
-
-    let timestamp: u64 = 0;
-    const MSG_LEN: usize = 24 + upspa_proto::CIPHERID_PT_LEN + 16 + 8;
-    let mut msg = [0u8; MSG_LEN];
-    let mut off = 0;
-    msg[off..off + 24].copy_from_slice(&newcipherid.nonce);
-    off += 24;
-    msg[off..off + upspa_proto::CIPHERID_PT_LEN].copy_from_slice(&newcipherid.ct);
-    off += upspa_proto::CIPHERID_PT_LEN;
-    msg[off..off + 16].copy_from_slice(&newcipherid.tag);
-    off += 16;
-    msg[off..off + 8].copy_from_slice(&timestamp.to_le_bytes());
-    off += 8;
-    debug_assert_eq!(off, MSG_LEN);
-
-    let sig = sid.sign(&msg);
-    let sig_bytes = sig.to_bytes();
-
-    let mut acc = blake3::Hasher::new();
-    acc.update(b"uptspa/password_update/acc/v2");
-    acc.update(&sig_bytes);
-    acc.update(&newcipherid.nonce);
-    acc.update(&newcipherid.ct);
-    acc.update(&newcipherid.tag);
-    let out = acc.finalize();
-    let mut r = [0u8; 32];
-    r.copy_from_slice(out.as_bytes());
-    r
-}
-
-fn upspa_auth_two_decryptions(fx: &upspa_proto::Fixture, it: &upspa_proto::IterData) -> [u8; 32] {
-    let (_state_key, cipherid_pt) = upspa_recover_state_and_cipherid_pt(fx, it);
-    let (rsp, fk, _sid) = upspa_extract_rsp_fk_sid(&cipherid_pt);
-
-    let mut acc = blake3::Hasher::new();
-    acc.update(b"uptspa/authentication/acc/2dec_v1");
-
-    for &id in fx.ids_for_t.iter() {
-        let suid = up_crypto::hash_suid(&rsp, &fx.lsj, id);
-        acc.update(suid.as_ref());
-    }
-
-    let id0 = fx.ids_for_t[0];
-    let blob = &fx.ciphersp_per_sp[(id0 - 1) as usize];
-    let pt = up_crypto::xchacha_decrypt_detached(&fk, &fx.ciphersp_aad, blob).expect("ciphersp must decrypt");
-
-    let mut rlsj = [0u8; 32];
-    rlsj.copy_from_slice(&pt[0..32]);
-
-    let mut ctr_bytes = [0u8; 8];
-    ctr_bytes.copy_from_slice(&pt[32..40]);
-    let ctr = u64::from_le_bytes(ctr_bytes);
-
-    let vinfo = up_crypto::hash_vinfo(&rlsj, &fx.lsj);
-    acc.update(&ctr.to_le_bytes());
-    acc.update(vinfo.as_ref());
-
-    let out = acc.finalize();
-    let mut r = [0u8; 32];
-    r.copy_from_slice(out.as_bytes());
-    r
-}
-
-fn bench_upspa_client_proto(
-    nsp: usize,
-    tsp: usize,
-    warmup: usize,
-    samples: usize,
-    pwdupd_versions: &[u8],
-    rng_in_timed: bool,
-    out: &mut BufWriter<File>,
-) -> std::io::Result<()> {
-    let scheme = "upspa";
-    let fx = upspa_proto::make_fixture(nsp, tsp);
-
-    let fx_setup = upspa_proto::make_setup_bench_fixture();
-
-    {
-        let mut rng = ChaCha20Rng::from_seed(seed_for(b"bench_unified/upspa/proto/setup_rng", nsp, tsp));
-        let st = bench_u128(
-            || {
-                let t0 = Instant::now();
-                let outv = upspa_proto::setup_user_side_bench(&fx_setup, nsp, tsp, &mut rng);
-                black_box(outv);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(out, scheme, "proto", "setup", rng_in_timed, nsp, tsp, warmup, &st)?;
-    }
-
-    let mut rng_reg = ChaCha20Rng::from_seed(seed_for(b"bench_unified/upspa/proto/reg_it", nsp, tsp));
-    let mut rng_auth = ChaCha20Rng::from_seed(seed_for(b"bench_unified/upspa/proto/auth_it", nsp, tsp));
-    let mut rng_sec = ChaCha20Rng::from_seed(seed_for(b"bench_unified/upspa/proto/sec_it", nsp, tsp));
-    let mut rng_pwd = ChaCha20Rng::from_seed(seed_for(b"bench_unified/upspa/proto/pwd_it", nsp, tsp));
-
-    {
-        let st = bench_u128(
-            || {
-                let it = upspa_proto::make_iter_data(&fx, &mut rng_reg);
-
-                let it = it;
-                let (rlsj, nonce) = if rng_in_timed {
-                    ([0u8; 32], [0u8; up_crypto::NONCE_LEN])
-                } else {
-                    upspa_precompute_reg_rng_outputs(it.r)
-                };
-
-                let t0 = Instant::now();
-                let outv = if rng_in_timed {
-                    upspa_proto::registration_user_side(&fx, &it)
-                } else {
-                    upspa_registration_no_rng(&fx, &it, rlsj, nonce)
-                };
-                black_box(outv);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(out, scheme, "proto", "reg", rng_in_timed, nsp, tsp, warmup, &st)?;
-    }
-
-    {
-        let st = bench_u128(
-            || {
-                let it = upspa_proto::make_iter_data(&fx, &mut rng_auth);
-                let t0 = Instant::now();
-                let outv = upspa_auth_two_decryptions(&fx, &it);
-                black_box(outv);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(out, scheme, "proto", "auth", rng_in_timed, nsp, tsp, warmup, &st)?;
-    }
-
-    {
-        let st = bench_u128(
-            || {
-                let it = upspa_proto::make_iter_data(&fx, &mut rng_sec);
-                let (new_rlsj, nonce) = if rng_in_timed {
-                    ([0u8; 32], [0u8; up_crypto::NONCE_LEN])
-                } else {
-                    upspa_precompute_secu_rng_outputs(it.r)
-                };
-
-                let t0 = Instant::now();
-                let outv = if rng_in_timed {
-                    upspa_proto::secret_update_user_side(&fx, &it)
-                } else {
-                    upspa_secu_no_rng(&fx, &it, new_rlsj, nonce)
-                };
-                black_box(outv);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "proto",
-            "secupd",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    for &v in pwdupd_versions {
-        let op_label = if v == 2 { "pwdupd_v2" } else { "pwdupd" };
-        let st = bench_u128(
-            || {
-                let it = upspa_proto::make_iter_data(&fx, &mut rng_pwd);
-
-                let (coeffs, nonce_v1, nonce_v2) = if rng_in_timed {
-                    (
-                        Vec::new(),
-                        [0u8; up_crypto::NONCE_LEN],
-                        [0u8; up_crypto::NONCE_LEN],
-                    )
-                } else {
-                    let (coeffs, nonce_v1) = upspa_precompute_pwdupd_coeffs_and_nonce(it.r, fx.tsp);
-                    let nonce_v2 = upspa_precompute_pwdupd_v2_nonce(it.r);
-                    (coeffs, nonce_v1, nonce_v2)
-                };
-
-                let t0 = Instant::now();
-                let outv = if rng_in_timed {
-                    if v == 2 {
-                        upspa_pwdupd_v2_rng_in_timed(&fx, &it, &mut rng_pwd)
-                    } else {
-                        upspa_proto::password_update_user_side(&fx, &it)
-                    }
-                } else {
-                    if v == 2 {
-                        upspa_pwdupd_v2_no_rng(&fx, &it, nonce_v2)
-                    } else {
-                        upspa_pwdupd_no_rng(&fx, &it, &coeffs, nonce_v1)
-                    }
-                };
-                black_box(outv);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "proto",
-            op_label,
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    Ok(())
-}
-
-fn bench_upspa_client_prims(
-    nsp: usize,
-    tsp: usize,
-    warmup: usize,
-    samples: usize,
-    rng_in_timed: bool,
-    out: &mut BufWriter<File>,
-) -> std::io::Result<()> {
-    let scheme = "upspa";
-    let fx = upspa_proto::make_fixture(nsp, tsp);
-
-    let mut rng0 = ChaCha20Rng::from_seed(seed_for(b"bench_unified/upspa/prim/derive", nsp, tsp));
-    let it0 = upspa_proto::make_iter_data(&fx, &mut rng0);
-    let (state_key0, cipherid_pt0) = upspa_recover_state_and_cipherid_pt(&fx, &it0);
-    let (rsp0, fk0, _sid0) = upspa_extract_rsp_fk_sid(&cipherid_pt0);
-
-    {
-        let mut rng = ChaCha20Rng::from_seed(seed_for(b"bench_unified/upspa/prim/toprf", nsp, tsp));
-        let st = bench_u128(
-            || {
-                let it = upspa_proto::make_iter_data(&fx, &mut rng);
-                let t0 = Instant::now();
-
-                let b = &fx.pwd_point * it.r;
-                black_box(b);
-
-                let k = up_crypto::toprf_client_eval_from_partials(
-                    &fx.password,
-                    it.r,
-                    &it.partials,
-                    &fx.lagrange_at_zero,
-                );
-                black_box(k);
-
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "prim",
-            "TOPRF_recv_eval_tsp",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    {
-        let st = bench_u128(
-            || {
-                let t0 = Instant::now();
-                let pt =
-                    up_crypto::xchacha_decrypt_detached(&state_key0, &fx.cipherid_aad, &fx.cipherid).unwrap();
-                black_box(pt);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "prim",
-            "AEAD_DEC_cipherid",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    {
-        let one = &fx.ciphersp_per_sp[0];
-        let st = bench_u128(
-            || {
-                let t0 = Instant::now();
-                let pt = up_crypto::xchacha_decrypt_detached(&fk0, &fx.ciphersp_aad, one).unwrap();
-                black_box(pt);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "prim",
-            "AEAD_DEC_ciphersp",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    {
-        let ctr: u64 = 0;
-        let mut pt = [0u8; upspa_proto::CIPHERSP_PT_LEN];
-        pt[0..32].copy_from_slice(&fx.cached_rlsj);
-        pt[32..40].copy_from_slice(&ctr.to_le_bytes());
-
-        if rng_in_timed {
-            let mut rng =
-                ChaCha20Rng::from_seed(seed_for(b"bench_unified/upspa/prim/aead_enc_rng", nsp, tsp));
-            let st = bench_u128(
-                || {
-                    let t0 = Instant::now();
-                    let c = up_crypto::xchacha_encrypt_detached(&fk0, &fx.ciphersp_aad, &pt, &mut rng);
-                    black_box(c.ct);
-                    black_box(c.tag);
-                    t0.elapsed().as_nanos()
-                },
-                warmup,
-                samples,
-            );
-            write_row(
-                out,
-                scheme,
-                "prim",
-                "AEAD_ENC_ciphersp_with_rng",
-                rng_in_timed,
-                nsp,
-                tsp,
-                warmup,
-                &st,
-            )?;
-        } else {
-            let nonce = [0x42u8; up_crypto::NONCE_LEN];
-            let st = bench_u128(
-                || {
-                    let t0 = Instant::now();
-                    let c = upspa_aead_encrypt_fixed(&fk0, &fx.ciphersp_aad, &pt, nonce);
-                    black_box(c.ct);
-                    black_box(c.tag);
-                    t0.elapsed().as_nanos()
-                },
-                warmup,
-                samples,
-            );
-            write_row(
-                out,
-                scheme,
-                "prim",
-                "AEAD_ENC_ciphersp_fixed_nonce",
-                rng_in_timed,
-                nsp,
-                tsp,
-                warmup,
-                &st,
-            )?;
-        }
-    }
-
-    {
-        let st = bench_u128(
-            || {
-                let t0 = Instant::now();
-                let h = up_crypto::hash_suid(&rsp0, &fx.lsj, 1);
-                black_box(h);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "prim",
-            "HASH_suid",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    {
-        let st = bench_u128(
-            || {
-                let t0 = Instant::now();
-                let h = up_crypto::hash_vinfo(&fx.cached_rlsj, &fx.lsj);
-                black_box(h);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "prim",
-            "HASH_vinfo",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    Ok(())
-}
-
-fn upspa_pwdupd_v2_rng_in_timed(
-    fx: &upspa_proto::Fixture,
-    it: &upspa_proto::IterData,
-    rng: &mut ChaCha20Rng,
-) -> [u8; 32] {
-    let (_state_key, cipherid_pt) = upspa_recover_state_and_cipherid_pt(fx, it);
-    let (_rsp, _fk, sid) = upspa_extract_rsp_fk_sid(&cipherid_pt);
-
-    let p_new = up_crypto::hash_to_point(&fx.new_password);
-    let blinded_new = p_new * it.r;
-    black_box(blinded_new);
-
-    let mut partials_new: Vec<RistrettoPoint> = Vec::with_capacity(fx.tsp);
-    for &id in fx.ids_for_t.iter() {
-        let share = fx.shares[(id - 1) as usize].1;
-        partials_new.push(blinded_new * share);
-    }
-
-    let new_state_key = up_crypto::toprf_client_eval_from_partials(
-        &fx.new_password,
-        it.r,
-        &partials_new,
-        &fx.lagrange_at_zero,
-    );
-
-    let mut nonce = [0u8; up_crypto::NONCE_LEN];
-    rng.fill_bytes(&mut nonce);
-
-    let newcipherid = upspa_aead_encrypt_fixed(&new_state_key, &fx.cipherid_aad, &cipherid_pt, nonce);
-
-    let timestamp: u64 = 0;
-    const MSG_LEN: usize = 24 + 96 + 16 + 8;
-    let mut msg = [0u8; MSG_LEN];
-    let mut off = 0;
-    msg[off..off + 24].copy_from_slice(&newcipherid.nonce);
-    off += 24;
-    msg[off..off + 96].copy_from_slice(&newcipherid.ct);
-    off += 96;
-    msg[off..off + 16].copy_from_slice(&newcipherid.tag);
-    off += 16;
-    msg[off..off + 8].copy_from_slice(&timestamp.to_le_bytes());
-    off += 8;
-    debug_assert_eq!(off, MSG_LEN);
-
-    let sig = sid.sign(&msg);
-    let sig_bytes = sig.to_bytes();
-
-    let mut acc = blake3::Hasher::new();
-    acc.update(b"uptspa/password_update/acc/v2_rng_in_timed");
-    acc.update(&sig_bytes);
-    acc.update(&newcipherid.nonce);
-    acc.update(&newcipherid.ct);
-    acc.update(&newcipherid.tag);
-    let out = acc.finalize();
-    let mut r = [0u8; 32];
-    r.copy_from_slice(out.as_bytes());
-    r
-}
-
-fn bench_upspa_server_prims(
-    nsp: usize,
-    tsp: usize,
-    warmup: usize,
-    samples: usize,
-    pwdupd_versions: &[u8],
-    rng_in_timed: bool,
-    out: &mut BufWriter<File>,
-) -> std::io::Result<()> {
-    use ed25519_dalek::{Signature, Verifier};
-
-    let scheme = "upspa";
-    let fx = upspa_proto::make_fixture(nsp, tsp);
-
-    let seed = seed_for(b"bench_unified/sp/upspa/recover", nsp, tsp);
-    let mut rng = ChaCha20Rng::from_seed(seed);
-    let r = up_crypto::random_scalar(&mut rng);
-    let blinded = fx.pwd_point * r;
-
-    let mut partials = Vec::with_capacity(fx.tsp);
-    for id in 1..=fx.tsp {
-        let share = fx.shares[id - 1].1;
-        partials.push(blinded * share);
-    }
-
-    let state_key =
-        up_crypto::toprf_client_eval_from_partials(&fx.password, r, &partials, &fx.lagrange_at_zero);
-
-    let cipherid_pt = up_crypto::xchacha_decrypt_detached(&state_key, &fx.cipherid_aad, &fx.cipherid)
-        .expect("cipherid must decrypt");
-
-    let mut sid_bytes = [0u8; 32];
-    sid_bytes.copy_from_slice(&cipherid_pt[0..32]);
-    let sid = SigningKey::from_bytes(&sid_bytes);
-
-    let mut rsp = [0u8; 32];
-    rsp.copy_from_slice(&cipherid_pt[32..64]);
-
-    let mut providers = Vec::with_capacity(fx.nsp);
-    for i in 1..=fx.nsp {
-        let share = fx.shares[i - 1].1;
-        let mut sp = sp_mod::UpSpaProvider::new(i as u32, share, fx.sig_pk_bytes, fx.cipherid.clone());
-        let suid = up_crypto::hash_suid(&rsp, &fx.lsj, i as u32);
-        sp.put_ciphersp(suid, fx.ciphersp_per_sp[i - 1].clone());
-        providers.push(sp);
-    }
-
-    let seed = seed_for(b"bench_unified/sp/upspa/blinded", nsp, tsp);
-    let mut rng = ChaCha20Rng::from_seed(seed);
-    let r = up_crypto::random_scalar(&mut rng);
-    let blinded = fx.pwd_point * r;
-    let blinded_bytes = sp_mod::compress_point(&blinded);
-    black_box(blinded_bytes);
-
-    let suid_1 = up_crypto::hash_suid(&rsp, &fx.lsj, 1);
-    let csp_blob = fx.ciphersp_per_sp[0].clone();
-
-    {
-        let st = bench_u128(
-            || {
-                let t0 = Instant::now();
-                let y = providers[0].toprf_send_eval(&blinded_bytes);
-                black_box(y);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "sp",
-            "srv_TOPRF_send_eval_one",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    {
-        let st = bench_u128(
-            || {
-                let t0 = Instant::now();
-                let v = providers[0].get_ciphersp(&suid_1);
-                black_box(v);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "sp",
-            "srv_DB_get_ciphersp_one",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    {
-        let st = bench_u128(
-            || {
-                let t0 = Instant::now();
-                providers[0].put_ciphersp(suid_1, csp_blob.clone());
-                black_box(&providers[0]);
-                t0.elapsed().as_nanos()
-            },
-            warmup,
-            samples,
-        );
-        write_row(
-            out,
-            scheme,
-            "sp",
-            "srv_DB_put_ciphersp_one",
-            rng_in_timed,
-            nsp,
-            tsp,
-            warmup,
-            &st,
-        )?;
-    }
-
-    for &v in pwdupd_versions {
-        if v == 2 {
-            const MSG_LEN_V2: usize = 24 + upspa_proto::CIPHERID_PT_LEN + 16 + 8;
-            let mut msg = [0u8; MSG_LEN_V2];
-            let mut off = 0;
-            msg[off..off + 24].copy_from_slice(&fx.cipherid.nonce);
-            off += 24;
-            msg[off..off + upspa_proto::CIPHERID_PT_LEN].copy_from_slice(&fx.cipherid.ct);
-            off += upspa_proto::CIPHERID_PT_LEN;
-            msg[off..off + 16].copy_from_slice(&fx.cipherid.tag);
-            off += 16;
-            msg[off..off + 8].copy_from_slice(&0u64.to_le_bytes());
-            off += 8;
-            debug_assert_eq!(off, MSG_LEN_V2);
-
-            let sig: Signature = sid.sign(&msg);
-
-            {
-                let st = bench_u128(
-                    || {
-                        let t0 = Instant::now();
-                        let ok = providers[0].sig_pk.verify(&msg, &sig).is_ok();
-                        black_box(ok);
-                        t0.elapsed().as_nanos()
-                    },
-                    warmup,
-                    samples,
-                );
-                write_row(
-                    out,
-                    scheme,
-                    "sp",
-                    "srv_Ed25519_verify_pwdupd_v2_one",
-                    rng_in_timed,
-                    nsp,
-                    tsp,
-                    warmup,
-                    &st,
-                )?;
-            }
-
-            {
-                let st = bench_u128(
-                    || {
-                        let t0 = Instant::now();
-                        let ok = providers[0].sig_pk.verify(&msg, &sig).is_ok();
-                        black_box(ok);
-                        t0.elapsed().as_nanos()
-                    },
-                    warmup,
-                    samples,
-                );
-                write_row(
-                    out,
-                    scheme,
-                    "sp",
-                    "srv_PWDUPD_v2_verify_only_one",
-                    rng_in_timed,
-                    nsp,
-                    tsp,
-                    warmup,
-                    &st,
-                )?;
-            }
-        } else {
-            let mut rng2 =
-                ChaCha20Rng::from_seed(seed_for(b"bench_unified/sp/upspa/pwdupd_v1_gen", nsp, tsp));
-            let (_new_master_sk, new_shares) = up_crypto::toprf_gen(fx.nsp, fx.tsp, &mut rng2);
-
-            const MSG_LEN_V1: usize = 24 + upspa_proto::CIPHERID_PT_LEN + 16 + 32 + 8 + 4;
-            let (spid1, share1) = new_shares[0];
-            let mut msg = [0u8; MSG_LEN_V1];
-            let mut off = 0;
-            msg[off..off + 24].copy_from_slice(&fx.cipherid.nonce);
-            off += 24;
-            msg[off..off + upspa_proto::CIPHERID_PT_LEN].copy_from_slice(&fx.cipherid.ct);
-            off += upspa_proto::CIPHERID_PT_LEN;
-            msg[off..off + 16].copy_from_slice(&fx.cipherid.tag);
-            off += 16;
-            msg[off..off + 32].copy_from_slice(&share1.to_bytes());
-            off += 32;
-            msg[off..off + 8].copy_from_slice(&0u64.to_le_bytes());
-            off += 8;
-            msg[off..off + 4].copy_from_slice(&spid1.to_le_bytes());
-            off += 4;
-            debug_assert_eq!(off, MSG_LEN_V1);
-
-            let sig: Signature = sid.sign(&msg);
-
-            {
-                let st = bench_u128(
-                    || {
-                        let t0 = Instant::now();
-                        let ok = providers[0].sig_pk.verify(&msg, &sig).is_ok();
-                        black_box(ok);
-                        t0.elapsed().as_nanos()
-                    },
-                    warmup,
-                    samples,
-                );
-                write_row(
-                    out,
-                    scheme,
-                    "sp",
-                    "srv_Ed25519_verify_pwdupd_v1_one",
-                    rng_in_timed,
-                    nsp,
-                    tsp,
-                    warmup,
-                    &st,
-                )?;
-            }
-
-            {
-                let st = bench_u128(
-                    || {
-                        let t0 = Instant::now();
-                        let ok = providers[0].apply_password_update(&msg, &sig);
-                        black_box(ok);
-                        t0.elapsed().as_nanos()
-                    },
-                    warmup,
-                    samples,
-                );
-                write_row(
-                    out,
-                    scheme,
-                    "sp",
-                    "srv_PWDUPD_v1_apply_one",
-                    rng_in_timed,
-                    nsp,
-                    tsp,
-                    warmup,
-                    &st,
-                )?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn upspa_pwdupd_req_bytes(version: u8) -> usize {
-    if version == 2 {
-        64 + 24 + upspa_proto::CIPHERID_PT_LEN + 16 + 8
-    } else {
-        sp_mod::NET_UPSPA_PWDUPD_REQ_BYTES
-    }
-}
-
-fn net_upspa_setup(nsp: usize, prof: NetProfile, proc_ns: u64, rng: &mut impl RngCore) -> u64 {
-    simulate_parallel_phase(
-        nsp,
-        sp_mod::NET_UPSPA_SETUP_REQ_BYTES,
-        sp_mod::NET_UPSPA_SETUP_RESP_BYTES,
-        proc_ns,
-        prof,
-        rng,
-    )
-}
-
-fn net_upspa_auth(
-    nsp: usize,
-    tsp: usize,
-    prof: NetProfile,
-    proc_toprf: u64,
-    proc_db_get: u64,
-    rng: &mut impl RngCore,
-) -> u64 {
-    let m = (nsp + tsp - 1) / tsp;
-    let p1 = simulate_parallel_phase(
-        tsp,
-        sp_mod::NET_UPSPA_TOPRF_REQ_BYTES,
-        sp_mod::NET_UPSPA_TOPRF_RESP_BYTES,
-        proc_toprf,
-        prof,
-        rng,
-    );
-    let p2 = simulate_parallel_phase(
-        m,
-        sp_mod::NET_UPSPA_GET_CSP_REQ_BYTES,
-        sp_mod::NET_UPSPA_GET_CSP_RESP_BYTES,
-        proc_db_get,
-        prof,
-        rng,
-    );
-    p1 + p2
-}
-
-fn net_upspa_reg(
-    nsp: usize,
-    tsp: usize,
-    prof: NetProfile,
-    proc_toprf: u64,
-    proc_db_put: u64,
-    rng: &mut impl RngCore,
-) -> u64 {
-    let p1 = simulate_parallel_phase(
-        tsp,
-        sp_mod::NET_UPSPA_TOPRF_REQ_BYTES,
-        sp_mod::NET_UPSPA_TOPRF_RESP_BYTES,
-        proc_toprf,
-        prof,
-        rng,
-    );
-    let p2 = simulate_parallel_phase(
-        nsp,
-        sp_mod::NET_UPSPA_PUT_CSP_REQ_BYTES,
-        sp_mod::NET_UPSPA_PUT_CSP_RESP_BYTES,
-        proc_db_put,
-        prof,
-        rng,
-    );
-    p1 + p2
-}
-
-fn net_upspa_secu(
-    nsp: usize,
-    tsp: usize,
-    prof: NetProfile,
-    proc_toprf: u64,
-    proc_db_get: u64,
-    proc_db_put: u64,
-    rng: &mut impl RngCore,
-) -> u64 {
-    let m = (nsp + tsp - 1) / tsp;
-    let p1 = simulate_parallel_phase(
-        tsp,
-        sp_mod::NET_UPSPA_TOPRF_REQ_BYTES,
-        sp_mod::NET_UPSPA_TOPRF_RESP_BYTES,
-        proc_toprf,
-        prof,
-        rng,
-    );
-    let p2 = simulate_parallel_phase(
-        m,
-        sp_mod::NET_UPSPA_GET_CSP_REQ_BYTES,
-        sp_mod::NET_UPSPA_GET_CSP_RESP_BYTES,
-        proc_db_get,
-        prof,
-        rng,
-    );
-    let p3 = simulate_parallel_phase(
-        nsp,
-        sp_mod::NET_UPSPA_PUT_CSP_REQ_BYTES,
-        sp_mod::NET_UPSPA_PUT_CSP_RESP_BYTES,
-        proc_db_put,
-        prof,
-        rng,
-    );
-    p1 + p2 + p3
-}
-
-fn net_upspa_pwdupd(
-    nsp: usize,
-    tsp: usize,
-    prof: NetProfile,
-    version: u8,
-    proc_toprf: u64,
-    proc_apply: u64,
-    rng: &mut impl RngCore,
-) -> u64 {
-    let p1 = simulate_parallel_phase(
-        tsp,
-        sp_mod::NET_UPSPA_TOPRF_REQ_BYTES,
-        sp_mod::NET_UPSPA_TOPRF_RESP_BYTES,
-        proc_toprf,
-        prof,
-        rng,
-    );
-    let p2 = simulate_parallel_phase(
-        nsp,
-        upspa_pwdupd_req_bytes(version),
-        sp_mod::NET_UPSPA_PWDUPD_RESP_BYTES,
-        proc_apply,
-        prof,
-        rng,
-    );
-    p1 + p2
-}
-
-fn bench_net_phase(
-    out: &mut BufWriter<File>,
-    scheme: &str,
-    op_name: &str,
-    nsp: usize,
-    tsp: usize,
-    warmup: usize,
-    samples: usize,
-    prof: NetProfile,
-    rng_in_timed: bool,
-    mut net_f: impl FnMut(&mut ChaCha20Rng) -> u64,
-) -> std::io::Result<()> {
-    let mut tag = Vec::new();
-    tag.extend_from_slice(b"bench_unified/net/");
-    tag.extend_from_slice(scheme.as_bytes());
-    tag.extend_from_slice(b"/");
-    tag.extend_from_slice(op_name.as_bytes());
-    tag.extend_from_slice(b"/");
-    tag.extend_from_slice(prof.name.as_bytes());
-    let seed = seed_for(&tag, nsp, tsp);
-    let mut rng = ChaCha20Rng::from_seed(seed);
-
-    for _ in 0..warmup {
-        let net = net_f(&mut rng);
-        black_box(net);
-    }
-
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        let net = net_f(&mut rng);
-        xs.push(net as u128);
-    }
-
-    let st = compute_stats(xs);
-    let op = format!("{}_{}_net", prof.name, op_name);
-    write_row(out, scheme, "net", &op, rng_in_timed, nsp, tsp, warmup, &st)
-}
-
-fn bench_full_phase(
-    out: &mut BufWriter<File>,
-    scheme: &str,
-    op_name: &str,
-    nsp: usize,
-    tsp: usize,
-    warmup: usize,
-    samples: usize,
-    prof: NetProfile,
-    rng_in_timed: bool,
-    mut client_f: impl FnMut() -> u64,
-    mut net_f: impl FnMut(&mut ChaCha20Rng) -> u64,
-) -> std::io::Result<()> {
-    let mut tag = Vec::new();
-    tag.extend_from_slice(b"bench_unified/full/");
-    tag.extend_from_slice(scheme.as_bytes());
-    tag.extend_from_slice(b"/");
-    tag.extend_from_slice(op_name.as_bytes());
-    tag.extend_from_slice(b"/");
-    tag.extend_from_slice(prof.name.as_bytes());
-    let seed = seed_for(&tag, nsp, tsp);
-    let mut rng = ChaCha20Rng::from_seed(seed);
-
-    for _ in 0..warmup {
-        let c = client_f();
-        let net = net_f(&mut rng);
-        black_box(c);
-        black_box(net);
-    }
-
-    let mut xs = Vec::with_capacity(samples);
-    for _ in 0..samples {
-        let c = client_f();
-        let net = net_f(&mut rng);
-        xs.push((c as u128) + (net as u128));
-    }
-
-    let st = compute_stats(xs);
-    let op = format!("{}_{}_total", prof.name, op_name);
-    write_row(out, scheme, "full", &op, rng_in_timed, nsp, tsp, warmup, &st)
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PwdupdMode {
-    V1,
-    V2,
-    Both,
-}
-
-#[derive(Clone, Debug)]
-struct Config {
-    scheme: String,
-    kinds: Vec<String>,
-    net_sel: String,
-    pwdupd_mode: PwdupdMode,
-
-    nsp_list: Vec<usize>,
-    tsp_abs: Option<Vec<usize>>,
-    tsp_pct: Option<Vec<u32>>,
-
-    sample_size: usize,
-    warmup_iters: usize,
-    out_path: String,
-    rng_in_timed: bool,
-
-    lan_rtt_ms: f64,
-    lan_jitter_ms: f64,
-    lan_bw_mbps: f64,
-    wan_rtt_ms: f64,
-    wan_jitter_ms: f64,
-    wan_bw_mbps: f64,
-    overhead_bytes: usize,
-
-    proc_warmup: usize,
-    proc_samples: usize,
-}
-
-fn print_help() {
-    eprintln!(
-        r#"bench_unified (unified bench for tspa/upspa)
-
-USAGE:
-  bench_unified [FLAGS]
-
-CORE FLAGS:
-  --scheme all|upspa|tspa          Which scheme(s) to benchmark (default: all)
-  --kind  proto,prim,sp,net,full   Which benchmark kinds to run (default: proto,prim)
-                                   Use "all" to run everything.
-  --pwdupd 1|2|both|v1|v2          Password-update variant(s) (default: 1)
-  --out FILE                       Output file (default: unified_bench.dat)
-
-GRID FLAGS:
-  --nsp 20,40,60,80,100            nsp values (default shown)
-  --tsp 5,10,20                    tsp absolute values (overrides --tsp-pct)
-  --tsp-pct 20,40,60,80,100        tsp as percent of nsp (rounded up; default shown)
-
-TIMING FLAGS:
-  --sample-size N                  Samples per op (default: 2000)
-  --warmup-iters N                 Warmup iterations per op (default: 300)
-  --rng-in-timed                   Keep RNG work inside timed region where applicable
-
-NETWORK FLAGS (used by --kind net and/or --kind full):
-  --net lan|wan|all                Which network profiles (default: all)
-  --lan-rtt-ms X --lan-jitter-ms Y --lan-bw-mbps Z
-  --wan-rtt-ms X --wan-jitter-ms Y --wan-bw-mbps Z
-  --overhead-bytes N               Per-message overhead bytes (default: 64)
-
-SERVER P50 CALIBRATION (only used by --kind full):
-  --proc-warmup N                  Warmup for server p50 microbench (default: 200)
-  --proc-samples N                 Samples for server p50 microbench (default: 1000)
-
-EXAMPLES:
-  # Client-only protocol phases, pwdupd v2
-  bench_unified --scheme upspa --kind proto --pwdupd v2
-
-  # Full end-to-end (client + net + server p50), WAN only, pwdupd v2
-  bench_unified --scheme upspa --kind full --net wan --pwdupd v2
-
-  # Net-only simulation, LAN+WAN
-  bench_unified --scheme upspa --kind net --net all
-
-  # Server-only primitives (UpSPA + TSPA)
-  bench_unified --scheme all --kind sp
-
-"#
-    );
-}
-
-fn parse_args(input: Vec<String>) -> Config {
-    let mut cfg = Config {
-        scheme: "all".to_string(),
-        kinds: vec!["proto".to_string(), "prim".to_string()],
-        net_sel: "all".to_string(),
-        pwdupd_mode: PwdupdMode::V1,
-
-        nsp_list: vec![20, 40, 60, 80, 100],
-        tsp_abs: None,
-        tsp_pct: Some(vec![20, 40, 60, 80, 100]),
-
-        sample_size: 200,
-        warmup_iters: 50,
-        out_path: "unified_bench.dat".to_string(),
-        rng_in_timed: false,
-
-        lan_rtt_ms: 0.5,
-        lan_jitter_ms: 0.05,
-        lan_bw_mbps: 1000.0,
-
-        wan_rtt_ms: 60.0,
-        wan_jitter_ms: 5.0,
-        wan_bw_mbps: 50.0,
-
-        overhead_bytes: 64,
-
-        proc_warmup: 200,
-        proc_samples: 1000,
+        config
+            .tsp_pct
+            .iter()
+            .map(|percentage| ((nsp as u128 * *percentage as u128 + 99) / 100) as usize)
+            .collect()
     };
+    for &tsp in &values {
+        if tsp == 0 || tsp > nsp {
+            return Err(invalid_input(format!("invalid UpSPA tuple nsp={nsp}, tsp={tsp}")));
+        }
+    }
+    Ok(values)
+}
 
-    let mut args = input.into_iter();
-    while let Some(a) = args.next() {
-        match a.as_str() {
-            "--help" | "-h" => {
-                print_help();
-                std::process::exit(0);
-            }
-            "--scheme" => cfg.scheme = args.next().expect("missing --scheme value"),
-            "--kind" => {
-                let v = args.next().expect("missing --kind value");
-                let ks = parse_list_string_lower(&v);
-                if ks.iter().any(|k| k == "all") {
-                    cfg.kinds = vec![
-                        "proto".into(),
-                        "prim".into(),
-                        "sp".into(),
-                        "net".into(),
-                        "full".into(),
-                    ];
-                } else {
-                    cfg.kinds = ks;
-                }
-            }
-            "--pwdupd" => {
-                let v = args.next().expect("missing --pwdupd value").to_ascii_lowercase();
-                cfg.pwdupd_mode = match v.as_str() {
-                    "1" | "v1" => PwdupdMode::V1,
-                    "2" | "v2" => PwdupdMode::V2,
-                    "both" | "all" => PwdupdMode::Both,
-                    _ => panic!("invalid --pwdupd value (use 1|2|both or v1|v2)"),
-                };
-            }
-            "--pwdupd-v2" => cfg.pwdupd_mode = PwdupdMode::V2,
+fn parse_args(args: Vec<String>) -> Result<Config, String> {
+    let mut kinds = vec![Kind::FullNoNet];
+    let mut operations = Operation::ALL.to_vec();
+    let mut nsp = vec![3];
+    let mut tsp = Some(vec![2]);
+    let mut tsp_pct = Vec::new();
+    let mut samples = 10;
+    let mut warmup = 2;
+    let mut output = "upspa_benchmark.dat".to_owned();
+    let mut rng_in_timed = false;
+    let mut scheme_selected = true;
+    let mut net_selection = "all".to_owned();
+    let mut delivery_bound_ms = None;
+    let mut lan_rtt_ms = 0.5;
+    let mut lan_jitter_ms = 0.05;
+    let mut lan_bw_mbps = 1000.0;
+    let mut wan_rtt_ms = 60.0;
+    let mut wan_jitter_ms = 5.0;
+    let mut wan_bw_mbps = 50.0;
+    let mut overhead_bytes = 64;
 
-            "--net" => cfg.net_sel = args.next().expect("missing --net value"),
-            "--nsp" => cfg.nsp_list = parse_list_usize(&args.next().expect("missing --nsp value")),
+    let mut index = 0;
+    while index < args.len() {
+        let flag = &args[index];
+        let value = |index: &mut usize| -> Result<&str, String> {
+            *index += 1;
+            args.get(*index)
+                .map(String::as_str)
+                .ok_or_else(|| format!("missing value for {flag}"))
+        };
+        match flag.as_str() {
+            "--scheme" => {
+                let selected = value(&mut index)?
+                    .split(',')
+                    .map(|item| item.trim().to_ascii_lowercase())
+                    .collect::<Vec<_>>();
+                scheme_selected = selected.iter().any(|item| item == "upspa" || item == "all");
+            }
+            "--kind" => kinds = parse_kinds(value(&mut index)?)?,
+            "--ops" => operations = parse_operations(value(&mut index)?)?,
+            "--nsp" => nsp = parse_usize_list(value(&mut index)?)?,
             "--tsp" => {
-                cfg.tsp_abs = Some(parse_list_usize(&args.next().expect("missing --tsp value")));
-                cfg.tsp_pct = None;
+                tsp = Some(parse_usize_list(value(&mut index)?)?);
+                tsp_pct.clear();
             }
             "--tsp-pct" => {
-                cfg.tsp_pct = Some(parse_list_u32(&args.next().expect("missing --tsp-pct value")));
-                cfg.tsp_abs = None;
+                tsp_pct = parse_u32_list(value(&mut index)?)?;
+                tsp = None;
             }
-
-            "--sample-size" => cfg.sample_size = args.next().expect("missing --sample-size").parse().unwrap(),
-            "--warmup-iters" => {
-                cfg.warmup_iters = args.next().expect("missing --warmup-iters").parse().unwrap()
+            "--sample-size" => samples = parse_usize(value(&mut index)?, flag)?,
+            "--warmup-iters" => warmup = parse_usize(value(&mut index)?, flag)?,
+            "--out" => output = value(&mut index)?.to_owned(),
+            "--rng-in-timed" | "--rng" => rng_in_timed = true,
+            "--net" => net_selection = value(&mut index)?.to_ascii_lowercase(),
+            "--delivery-bound-ms" => delivery_bound_ms = Some(parse_f64(value(&mut index)?, flag)?),
+            "--lan-rtt-ms" => lan_rtt_ms = parse_f64(value(&mut index)?, flag)?,
+            "--lan-jitter-ms" => lan_jitter_ms = parse_f64(value(&mut index)?, flag)?,
+            "--lan-bw-mbps" => lan_bw_mbps = parse_f64(value(&mut index)?, flag)?,
+            "--wan-rtt-ms" => wan_rtt_ms = parse_f64(value(&mut index)?, flag)?,
+            "--wan-jitter-ms" => wan_jitter_ms = parse_f64(value(&mut index)?, flag)?,
+            "--wan-bw-mbps" => wan_bw_mbps = parse_f64(value(&mut index)?, flag)?,
+            "--overhead-bytes" => overhead_bytes = parse_usize(value(&mut index)?, flag)?,
+            // Accepted as no-ops for root-CLI and legacy compatibility. UpSPA has one
+            // authoritative password update and does not use qsp/offline/proc calibration.
+            "--pwdupd" | "--qsp" | "--offline" | "--proc-warmup" | "--proc-samples" => {
+                let _ = value(&mut index)?;
             }
-            "--out" => cfg.out_path = args.next().expect("missing --out"),
-            "--rng-in-timed" | "--rng" => cfg.rng_in_timed = true,
-
-            "--lan-rtt-ms" => cfg.lan_rtt_ms = args.next().expect("missing --lan-rtt-ms").parse().unwrap(),
-            "--lan-jitter-ms" => {
-                cfg.lan_jitter_ms = args.next().expect("missing --lan-jitter-ms").parse().unwrap()
+            "--pwdupd-v2" => {}
+            "--help" | "-h" => return Err(help_text().into()),
+            unknown if unknown.starts_with('-') => {
+                return Err(format!("unknown UpSPA benchmark flag: {unknown}"));
             }
-            "--lan-bw-mbps" => cfg.lan_bw_mbps = args.next().expect("missing --lan-bw-mbps").parse().unwrap(),
-            "--wan-rtt-ms" => cfg.wan_rtt_ms = args.next().expect("missing --wan-rtt-ms").parse().unwrap(),
-            "--wan-jitter-ms" => {
-                cfg.wan_jitter_ms = args.next().expect("missing --wan-jitter-ms").parse().unwrap()
-            }
-            "--wan-bw-mbps" => cfg.wan_bw_mbps = args.next().expect("missing --wan-bw-mbps").parse().unwrap(),
-            "--overhead-bytes" => {
-                cfg.overhead_bytes = args.next().expect("missing --overhead-bytes").parse().unwrap()
-            }
-
-            "--proc-warmup" => cfg.proc_warmup = args.next().expect("missing --proc-warmup").parse().unwrap(),
-            "--proc-samples" => {
-                cfg.proc_samples = args.next().expect("missing --proc-samples").parse().unwrap()
-            }
-
-            "--bench" => {
-                let _ = args.next();
-            }
-            _ if a.starts_with('-') => {}
             _ => {}
         }
+        index += 1;
     }
-
-    cfg
-}
-
-pub fn run(args: Vec<String>) -> std::io::Result<()> {
-    let cfg = parse_args(args);
-
-    let do_proto = cfg.kinds.iter().any(|k| k == "proto");
-    let do_prim = cfg.kinds.iter().any(|k| k == "prim");
-    let do_sp = cfg.kinds.iter().any(|k| k == "sp");
-    let do_net = cfg.kinds.iter().any(|k| k == "net");
-    let do_full = cfg.kinds.iter().any(|k| k == "full");
-
-    let pwdupd_versions: Vec<u8> = match cfg.pwdupd_mode {
-        PwdupdMode::V1 => vec![1],
-        PwdupdMode::V2 => vec![2],
-        PwdupdMode::Both => vec![1, 2],
-    };
-
+    if samples == 0 {
+        return Err("--sample-size must be positive".into());
+    }
+    if nsp.is_empty() || kinds.is_empty() || operations.is_empty() {
+        return Err("benchmark grids must not be empty".into());
+    }
+    if tsp.is_none() && tsp_pct.is_empty() {
+        return Err("--tsp-pct must not be empty".into());
+    }
     let lan = NetProfile {
         name: "lan",
-        one_way_ns: ms_to_ns(cfg.lan_rtt_ms / 2.0),
-        jitter_ns: ms_to_ns(cfg.lan_jitter_ms),
-        bw_bps: mbps_to_bps(cfg.lan_bw_mbps),
-        overhead_bytes: cfg.overhead_bytes,
+        one_way_ns: ms_to_ns(lan_rtt_ms / 2.0),
+        jitter_ns: ms_to_ns(lan_jitter_ms),
+        bandwidth_bps: mbps_to_bps(lan_bw_mbps),
+        overhead_bytes,
     };
     let wan = NetProfile {
         name: "wan",
-        one_way_ns: ms_to_ns(cfg.wan_rtt_ms / 2.0),
-        jitter_ns: ms_to_ns(cfg.wan_jitter_ms),
-        bw_bps: mbps_to_bps(cfg.wan_bw_mbps),
-        overhead_bytes: cfg.overhead_bytes,
+        one_way_ns: ms_to_ns(wan_rtt_ms / 2.0),
+        jitter_ns: ms_to_ns(wan_jitter_ms),
+        bandwidth_bps: mbps_to_bps(wan_bw_mbps),
+        overhead_bytes,
     };
+    let profiles = match net_selection.as_str() {
+        "lan" => vec![lan],
+        "wan" => vec![wan],
+        "all" => vec![lan, wan],
+        other => return Err(format!("invalid --net value: {other}")),
+    };
+    Ok(Config {
+        scheme_selected,
+        kinds,
+        operations,
+        nsp,
+        tsp,
+        tsp_pct,
+        samples,
+        warmup,
+        output,
+        rng_in_timed,
+        profiles,
+        explicit_delivery_bound_ns: delivery_bound_ms.map(ms_to_ns),
+    })
+}
 
-    let mut profiles: Vec<NetProfile> = Vec::new();
-    match cfg.net_sel.as_str() {
-        "lan" => profiles.push(lan),
-        "wan" => profiles.push(wan),
-        _ => {
-            profiles.push(lan);
-            profiles.push(wan);
+fn parse_kinds(value: &str) -> Result<Vec<Kind>, String> {
+    let mut output = Vec::new();
+    for raw in value.split(',') {
+        let normalized = raw.trim().to_ascii_lowercase().replace('-', "_");
+        if normalized.is_empty() {
+            continue;
         }
-    }
-
-    let file = File::create(&cfg.out_path)?;
-    let mut out = BufWriter::new(file);
-    write_header(&mut out)?;
-
-    for &nsp in &cfg.nsp_list {
-        let tsp_list: Vec<usize> = if let Some(ts) = &cfg.tsp_abs {
-            ts.clone()
-        } else {
-            let pcts = cfg.tsp_pct.as_ref().unwrap();
-            pcts.iter()
-                .map(|p| {
-                    let v = ((nsp as u128) * (*p as u128) + 99) / 100;
-                    let v = v as usize;
-                    v.clamp(1, nsp)
-                })
-                .collect()
+        if normalized == "all" {
+            return Ok(Kind::ALL.to_vec());
+        }
+        let kind = match normalized.as_str() {
+            "client" | "proto" | "prim" => Kind::Client,
+            "provider" | "sp" => Kind::Provider,
+            "login_server" | "ls" => Kind::LoginServer,
+            "full_no_net" => Kind::FullNoNet,
+            "net_only" | "net" => Kind::NetOnly,
+            "full_net" | "full" => Kind::FullNet,
+            _ => return Err(format!("invalid UpSPA benchmark kind: {raw}")),
         };
-
-        for &tsp in &tsp_list {
-            let procs = if do_full {
-                Some(measure_server_procs_p50(
-                    nsp,
-                    tsp,
-                    cfg.proc_warmup,
-                    cfg.proc_samples,
-                ))
-            } else {
-                None
-            };
-
-            if cfg.scheme == "all" || cfg.scheme == "upspa" {
-                if do_proto {
-                    bench_upspa_client_proto(
-                        nsp,
-                        tsp,
-                        cfg.warmup_iters,
-                        cfg.sample_size,
-                        &pwdupd_versions,
-                        cfg.rng_in_timed,
-                        &mut out,
-                    )?;
-                }
-                if do_prim {
-                    bench_upspa_client_prims(
-                        nsp,
-                        tsp,
-                        cfg.warmup_iters,
-                        cfg.sample_size,
-                        cfg.rng_in_timed,
-                        &mut out,
-                    )?;
-                }
-                if do_sp {
-                    bench_upspa_server_prims(
-                        nsp,
-                        tsp,
-                        cfg.warmup_iters,
-                        cfg.sample_size,
-                        &pwdupd_versions,
-                        cfg.rng_in_timed,
-                        &mut out,
-                    )?;
-                }
-
-                if do_net {
-                    for prof in &profiles {
-                        bench_net_phase(
-                            &mut out,
-                            "upspa",
-                            "setup",
-                            nsp,
-                            tsp,
-                            cfg.warmup_iters,
-                            cfg.sample_size,
-                            *prof,
-                            cfg.rng_in_timed,
-                            |r| net_upspa_setup(nsp, *prof, 0, r),
-                        )?;
-                        bench_net_phase(
-                            &mut out,
-                            "upspa",
-                            "reg",
-                            nsp,
-                            tsp,
-                            cfg.warmup_iters,
-                            cfg.sample_size,
-                            *prof,
-                            cfg.rng_in_timed,
-                            |r| net_upspa_reg(nsp, tsp, *prof, 0, 0, r),
-                        )?;
-                        bench_net_phase(
-                            &mut out,
-                            "upspa",
-                            "auth",
-                            nsp,
-                            tsp,
-                            cfg.warmup_iters,
-                            cfg.sample_size,
-                            *prof,
-                            cfg.rng_in_timed,
-                            |r| net_upspa_auth(nsp, tsp, *prof, 0, 0, r),
-                        )?;
-                        bench_net_phase(
-                            &mut out,
-                            "upspa",
-                            "secupd",
-                            nsp,
-                            tsp,
-                            cfg.warmup_iters,
-                            cfg.sample_size,
-                            *prof,
-                            cfg.rng_in_timed,
-                            |r| net_upspa_secu(nsp, tsp, *prof, 0, 0, 0, r),
-                        )?;
-                        for &v in &pwdupd_versions {
-                            let op = if v == 2 { "pwdupd_v2" } else { "pwdupd" };
-                            bench_net_phase(
-                                &mut out,
-                                "upspa",
-                                op,
-                                nsp,
-                                tsp,
-                                cfg.warmup_iters,
-                                cfg.sample_size,
-                                *prof,
-                                cfg.rng_in_timed,
-                                |r| net_upspa_pwdupd(nsp, tsp, *prof, v, 0, 0, r),
-                            )?;
-                        }
-                    }
-                }
-
-                if do_full {
-                    let procs = procs.unwrap();
-
-                    let fx_up = upspa_proto::make_fixture(nsp, tsp);
-                    let fx_up_setup = upspa_proto::make_setup_bench_fixture();
-
-                    let seed_it = seed_for(b"bench_unified/full/it_seed", nsp, tsp);
-                    let mut it_rng = ChaCha20Rng::from_seed(seed_it);
-
-                    let it_up_auth = upspa_proto::make_iter_data(&fx_up, &mut it_rng);
-                    let it_up_reg = upspa_proto::make_iter_data(&fx_up, &mut it_rng);
-                    let it_up_secu = upspa_proto::make_iter_data(&fx_up, &mut it_rng);
-                    let it_up_pwdupd = upspa_proto::make_iter_data(&fx_up, &mut it_rng);
-
-                    let up_client_setup = || {
-                        let seed = seed_for(b"bench_unified/full/up_setup_rng", nsp, tsp);
-                        let mut rng = ChaCha20Rng::from_seed(seed);
-                        time_call_ns(|| upspa_proto::setup_user_side_bench(&fx_up_setup, nsp, tsp, &mut rng))
-                    };
-                    let up_client_reg =
-                        || time_call_ns(|| upspa_proto::registration_user_side(&fx_up, &it_up_reg));
-                    let up_client_auth = || time_call_ns(|| upspa_auth_two_decryptions(&fx_up, &it_up_auth));
-                    let up_client_secu =
-                        || time_call_ns(|| upspa_proto::secret_update_user_side(&fx_up, &it_up_secu));
-
-                    for prof in &profiles {
-                        bench_full_phase(
-                            &mut out,
-                            "upspa",
-                            "setup",
-                            nsp,
-                            tsp,
-                            cfg.warmup_iters,
-                            cfg.sample_size,
-                            *prof,
-                            cfg.rng_in_timed,
-                            up_client_setup,
-                            |r| net_upspa_setup(nsp, *prof, procs.up_setup_store_ns, r),
-                        )?;
-
-                        bench_full_phase(
-                            &mut out,
-                            "upspa",
-                            "reg",
-                            nsp,
-                            tsp,
-                            cfg.warmup_iters,
-                            cfg.sample_size,
-                            *prof,
-                            cfg.rng_in_timed,
-                            up_client_reg,
-                            |r| net_upspa_reg(nsp, tsp, *prof, procs.up_toprf_eval_ns, procs.up_db_put_ns, r),
-                        )?;
-
-                        bench_full_phase(
-                            &mut out,
-                            "upspa",
-                            "auth",
-                            nsp,
-                            tsp,
-                            cfg.warmup_iters,
-                            cfg.sample_size,
-                            *prof,
-                            cfg.rng_in_timed,
-                            up_client_auth,
-                            |r| {
-                                net_upspa_auth(nsp, tsp, *prof, procs.up_toprf_eval_ns, procs.up_db_get_ns, r)
-                            },
-                        )?;
-
-                        bench_full_phase(
-                            &mut out,
-                            "upspa",
-                            "secupd",
-                            nsp,
-                            tsp,
-                            cfg.warmup_iters,
-                            cfg.sample_size,
-                            *prof,
-                            cfg.rng_in_timed,
-                            up_client_secu,
-                            |r| {
-                                net_upspa_secu(
-                                    nsp,
-                                    tsp,
-                                    *prof,
-                                    procs.up_toprf_eval_ns,
-                                    procs.up_db_get_ns,
-                                    procs.up_db_put_ns,
-                                    r,
-                                )
-                            },
-                        )?;
-
-                        for &v in &pwdupd_versions {
-                            let op = if v == 2 { "pwdupd_v2" } else { "pwdupd" };
-                            let proc_apply = if v == 2 {
-                                procs.up_pwdupd_apply_ns_v2
-                            } else {
-                                procs.up_pwdupd_apply_ns_v1
-                            };
-                            let up_client_pwdupd = || {
-                                if v == 2 {
-                                    time_call_ns(|| {
-                                        let nonce = upspa_precompute_pwdupd_v2_nonce(it_up_pwdupd.r);
-                                        upspa_pwdupd_v2_no_rng(&fx_up, &it_up_pwdupd, nonce)
-                                    })
-                                } else {
-                                    time_call_ns(|| {
-                                        upspa_proto::password_update_user_side(&fx_up, &it_up_pwdupd)
-                                    })
-                                }
-                            };
-                            bench_full_phase(
-                                &mut out,
-                                "upspa",
-                                op,
-                                nsp,
-                                tsp,
-                                cfg.warmup_iters,
-                                cfg.sample_size,
-                                *prof,
-                                cfg.rng_in_timed,
-                                up_client_pwdupd,
-                                |r| {
-                                    net_upspa_pwdupd(
-                                        nsp,
-                                        tsp,
-                                        *prof,
-                                        v,
-                                        procs.up_toprf_eval_ns,
-                                        proc_apply,
-                                        r,
-                                    )
-                                },
-                            )?;
-                        }
-                    }
-                }
-            }
-
-            out.flush()?;
-            eprintln!(
-                "done nsp={nsp} tsp={tsp} scheme={} kinds={:?} pwdupd={:?} net={} rng_in_timed={}",
-                cfg.scheme, cfg.kinds, cfg.pwdupd_mode, cfg.net_sel, cfg.rng_in_timed
-            );
+        if !output.contains(&kind) {
+            output.push(kind);
         }
     }
+    Ok(output)
+}
 
-    Ok(())
+fn parse_operations(value: &str) -> Result<Vec<Operation>, String> {
+    let mut output = Vec::new();
+    for raw in value.split(',') {
+        let normalized = raw.trim().to_ascii_lowercase().replace('-', "_");
+        if normalized.is_empty() {
+            continue;
+        }
+        if normalized == "all" {
+            return Ok(Operation::ALL.to_vec());
+        }
+        let operation = match normalized.as_str() {
+            "setup" => Operation::Setup,
+            "reg" | "registration" => Operation::Registration,
+            "auth" | "authentication" => Operation::Authentication,
+            "secupd" | "secret_update" => Operation::SecretUpdate,
+            "pwdupd" | "password_update" => Operation::PasswordUpdate,
+            _ => return Err(format!("invalid UpSPA operation: {raw}")),
+        };
+        if !output.contains(&operation) {
+            output.push(operation);
+        }
+    }
+    Ok(output)
+}
+
+fn parse_usize_list(value: &str) -> Result<Vec<usize>, String> {
+    value
+        .split(',')
+        .filter(|item| !item.trim().is_empty())
+        .map(|item| parse_usize(item.trim(), "list"))
+        .collect()
+}
+
+fn parse_u32_list(value: &str) -> Result<Vec<u32>, String> {
+    value
+        .split(',')
+        .filter(|item| !item.trim().is_empty())
+        .map(|item| {
+            item.trim()
+                .parse::<u32>()
+                .map_err(|_| format!("invalid integer: {item}"))
+        })
+        .collect()
+}
+
+fn parse_usize(value: &str, flag: &str) -> Result<usize, String> {
+    value
+        .parse::<usize>()
+        .map_err(|_| format!("invalid integer for {flag}: {value}"))
+}
+
+fn parse_f64(value: &str, flag: &str) -> Result<f64, String> {
+    let parsed = value
+        .parse::<f64>()
+        .map_err(|_| format!("invalid number for {flag}: {value}"))?;
+    if parsed.is_finite() && parsed >= 0.0 {
+        Ok(parsed)
+    } else {
+        Err(format!("{flag} must be a finite non-negative number"))
+    }
+}
+
+fn ms_to_ns(value: f64) -> u64 {
+    (value * 1_000_000.0).round().min(u64::MAX as f64) as u64
+}
+
+fn mbps_to_bps(value: f64) -> u64 {
+    (value * 1_000_000.0).round().min(u64::MAX as f64) as u64
+}
+
+fn invalid_input(error: impl ToString) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidInput, error.to_string())
+}
+
+fn help_text() -> &'static str {
+    "UpSPA benchmark flags: --kind client,provider,login-server,full-no-net,net-only,full-net --ops setup,reg,auth,secupd,pwdupd,all --nsp N[,N] --tsp T[,T] --sample-size N --warmup-iters N --net lan|wan|all --delivery-bound-ms N --out FILE"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn output_schema_has_exactly_thirty_three_columns() {
+        assert_eq!(HEADER.split_whitespace().count(), 33);
+    }
+
+    #[test]
+    fn trace_network_model_consumes_emitted_stages() {
+        let processing = execute_processing_sample(Operation::Registration, 3, 2, 0).unwrap();
+        assert_eq!(
+            processing.trace.stage_order(),
+            vec![
+                ProtocolStage::Identification,
+                ProtocolStage::ParallelProviderAndLsPrepare,
+                ProtocolStage::ParallelTerminalAndProviderFinalAcks,
+            ]
+        );
+        let profile = NetProfile {
+            name: "test",
+            one_way_ns: 100,
+            jitter_ns: 0,
+            bandwidth_bps: 1_000_000_000,
+            overhead_bytes: 0,
+        };
+        let cost = simulate_trace(&processing.trace, profile, 100, 1);
+        assert!(cost.identification_ns > 0);
+        assert!(cost.prepare_ns > 0);
+        assert!(cost.terminal_ns > 0);
+        assert_eq!(
+            cost.total_ns,
+            cost.identification_ns + cost.prepare_ns + cost.terminal_ns
+        );
+    }
+
+    #[test]
+    fn component_rows_report_only_measured_role_work_and_full_rows_report_all_roles() {
+        let processing = execute_processing_sample(Operation::Registration, 3, 2, 0).unwrap();
+        assert!(processing.processing_ns > 0);
+        assert!(processing.client_ns > 0);
+        assert!(processing.provider_ns > 0);
+        assert!(processing.login_server_ns > 0);
+        assert_eq!(
+            processing.client_ns + processing.provider_ns + processing.login_server_ns,
+            processing.processing_ns
+        );
+
+        let client = compose_sample(Kind::Client, processing.clone(), None, 0, 1);
+        assert_eq!(client.total_ns, processing.client_ns);
+        assert_eq!(client.provider_ns, 0);
+        assert_eq!(client.login_server_ns, 0);
+
+        let provider = compose_sample(Kind::Provider, processing.clone(), None, 0, 1);
+        assert_eq!(provider.total_ns, processing.provider_ns);
+        assert_eq!(provider.client_ns, 0);
+        assert_eq!(provider.login_server_ns, 0);
+
+        let login_server = compose_sample(Kind::LoginServer, processing.clone(), None, 0, 1);
+        assert_eq!(login_server.total_ns, processing.login_server_ns);
+        assert_eq!(login_server.client_ns, 0);
+        assert_eq!(login_server.provider_ns, 0);
+
+        let full = compose_sample(Kind::FullNoNet, processing.clone(), None, 0, 1);
+        assert_eq!(full.total_ns, processing.processing_ns);
+        assert_eq!(full.client_ns, processing.client_ns);
+        assert_eq!(full.provider_ns, processing.provider_ns);
+        assert_eq!(full.login_server_ns, processing.login_server_ns);
+    }
+
+    #[test]
+    fn smoke_run_emits_only_complete_thirty_three_column_upspa_rows() {
+        let path = std::env::temp_dir().join(format!("upspa-authoritative-smoke-{}.dat", std::process::id()));
+        run(vec![
+            "--scheme".into(),
+            "upspa".into(),
+            "--kind".into(),
+            "full-no-net".into(),
+            "--ops".into(),
+            "all".into(),
+            "--nsp".into(),
+            "3".into(),
+            "--tsp".into(),
+            "2".into(),
+            "--sample-size".into(),
+            "1".into(),
+            "--warmup-iters".into(),
+            "0".into(),
+            "--out".into(),
+            path.to_string_lossy().into_owned(),
+        ])
+        .unwrap();
+        let contents = std::fs::read_to_string(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        let lines = contents.lines().collect::<Vec<_>>();
+        assert_eq!(lines.len(), 6);
+        assert_eq!(lines[0], HEADER);
+        for row in &lines[1..] {
+            assert_eq!(row.split_whitespace().count(), 33, "{row}");
+            assert!(row.starts_with("upspa "));
+            assert!(row.contains(" completed "));
+            let fields = row.split_whitespace().collect::<Vec<_>>();
+            let client_ns = fields[11].parse::<u64>().unwrap();
+            let provider_ns = fields[12].parse::<u64>().unwrap();
+            let login_server_ns = fields[13].parse::<u64>().unwrap();
+            let network_ns = fields[14].parse::<u64>().unwrap();
+            let total_ns = fields[15].parse::<u64>().unwrap();
+            assert!(client_ns > 0, "full phase must report client work: {row}");
+            assert!(provider_ns > 0, "full phase must report provider work: {row}");
+            assert_eq!(network_ns, 0);
+            assert_eq!(client_ns + provider_ns + login_server_ns, total_ns);
+        }
+    }
 }
