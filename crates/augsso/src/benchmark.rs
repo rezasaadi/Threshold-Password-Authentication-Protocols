@@ -222,8 +222,8 @@ const AUTH_RESP2_BYTES_PER_SERVER: usize = augsso::CTTKN_LEN;
 const REG_REQ_BYTES_PER_SERVER: usize = augsso::UID_LEN + 32 + ac::PKE_PK_LEN;
 const REG_RESP_BYTES_PER_SERVER: usize = 0;
 
-const UPDATE_PKE_PT_LEN: usize = augsso::CH_LEN + augsso::EK_LEN + augsso::SIGMA_LEN;
-const UPDATE_CTCH_PT_LEN: usize = augsso::CH_LEN + ac::PKE_PK_LEN;
+pub const UPDATE_PKE_PT_LEN: usize = augsso::CH_LEN + augsso::EK_LEN + augsso::SIGMA_LEN;
+pub const UPDATE_CTCH_PT_LEN: usize = augsso::CH_LEN + ac::PKE_PK_LEN;
 const UPDATE_REQ1_BYTES_PER_SERVER: usize = augsso::UID_LEN + 2 * augsso::BPW_LEN;
 const UPDATE_RESP1_BYTES_PER_SERVER: usize = augsso::SIGMA_LEN
     + ac::PKE_EPHEMERAL_PK_LEN
@@ -235,7 +235,7 @@ const UPDATE_REQ2_BYTES_PER_SERVER: usize =
 const UPDATE_RESP2_BYTES_PER_SERVER: usize = augsso::SIGMA_LEN;
 
 #[derive(Clone, Debug)]
-struct PasswordUpdateClientState {
+pub struct PasswordUpdateClientState {
     old_password: Vec<u8>,
     new_password: Vec<u8>,
     r_old: ac::Scalar,
@@ -245,38 +245,38 @@ struct PasswordUpdateClientState {
 }
 
 #[derive(Clone, Debug)]
-struct PasswordUpdateRequest {
-    client_id: augsso::ClientId,
-    bpw_old: [u8; augsso::BPW_LEN],
-    bpw_new: [u8; augsso::BPW_LEN],
+pub struct PasswordUpdateRequest {
+    pub client_id: augsso::ClientId,
+    pub bpw_old: [u8; augsso::BPW_LEN],
+    pub bpw_new: [u8; augsso::BPW_LEN],
 }
 
 #[derive(Clone, Debug)]
-struct PasswordUpdateResponse1 {
-    server_id: u32,
-    sigma_old_i: [u8; augsso::SIGMA_LEN],
-    ct_res: ac::PkeCt<UPDATE_PKE_PT_LEN>,
+pub struct PasswordUpdateResponse1 {
+    pub server_id: u32,
+    pub sigma_old_i: [u8; augsso::SIGMA_LEN],
+    pub ct_res: ac::PkeCt<UPDATE_PKE_PT_LEN>,
 }
 
 #[derive(Clone, Debug)]
-struct PasswordUpdateServerSession {
-    server_id: u32,
-    client_id: augsso::ClientId,
-    bpw_new: [u8; augsso::BPW_LEN],
-    ek: [u8; augsso::EK_LEN],
-    ch: [u8; augsso::CH_LEN],
+pub struct PasswordUpdateServerSession {
+    pub server_id: u32,
+    pub client_id: augsso::ClientId,
+    pub bpw_new: [u8; augsso::BPW_LEN],
+    pub ek: [u8; augsso::EK_LEN],
+    pub ch: [u8; augsso::CH_LEN],
 }
 
 #[derive(Clone, Debug)]
-struct PasswordUpdateClientPhase1 {
-    ct_ch: Vec<(u32, crypto_core::CtBlob<UPDATE_CTCH_PT_LEN>)>,
+pub struct PasswordUpdateClientPhase1 {
+    pub ct_ch: Vec<(u32, crypto_core::CtBlob<UPDATE_CTCH_PT_LEN>)>,
 }
 
 #[derive(Clone, Debug)]
-struct PasswordUpdateResponse2 {
-    server_id: u32,
-    sigma_phi_i: [u8; augsso::SIGMA_LEN],
-    new_rpk: [u8; ac::PKE_PK_LEN],
+pub struct PasswordUpdateResponse2 {
+    pub server_id: u32,
+    pub sigma_phi_i: [u8; augsso::SIGMA_LEN],
+    pub new_rpk: [u8; ac::PKE_PK_LEN],
 }
 
 #[derive(Clone)]
@@ -359,6 +359,37 @@ fn password_update_request(
     password_update_request_with_r(fx, new_password, r_old, r_new)
 }
 
+/// The existing Password Update client algorithm without a centralized fixture.
+/// The client needs its password and public provider identifiers, never server state.
+pub fn password_update_request_for(
+    client_id: augsso::ClientId,
+    nsp: usize,
+    t_set: &[u32],
+    old_password: &[u8],
+    new_password: &[u8],
+    rng: &mut impl RngCore,
+) -> (PasswordUpdateClientState, PasswordUpdateRequest) {
+    let r_old = ac::random_scalar_nonzero(rng);
+    let r_new = ac::random_scalar_nonzero(rng);
+    let bpw_old = ac::g1_to_bytes(&(ac::hash_to_g1(b"augsso/H_pw/v1", old_password) * r_old));
+    let bpw_new = ac::g1_to_bytes(&(ac::hash_to_g1(b"augsso/H_pw/v1", new_password) * r_new));
+    (
+        PasswordUpdateClientState {
+            old_password: old_password.to_vec(),
+            new_password: new_password.to_vec(),
+            r_old,
+            r_new,
+            t_set: t_set.to_vec(),
+            nsp,
+        },
+        PasswordUpdateRequest {
+            client_id,
+            bpw_old,
+            bpw_new,
+        },
+    )
+}
+
 fn password_update_respond1_with_rand(
     srv: &augsso::AugSsoServer,
     req: &PasswordUpdateRequest,
@@ -401,7 +432,7 @@ fn password_update_respond1_with_rand(
     ))
 }
 
-fn password_update_respond1(
+pub fn password_update_respond1(
     srv: &augsso::AugSsoServer,
     req: &PasswordUpdateRequest,
     rng: &mut impl RngCore,
@@ -423,7 +454,7 @@ fn password_update_respond1(
     password_update_respond1_with_rand(srv, req, &rand)
 }
 
-fn password_update_client_phase1(
+pub fn password_update_client_phase1(
     st: &PasswordUpdateClientState,
     req: &PasswordUpdateRequest,
     resps: &[PasswordUpdateResponse1],
@@ -518,7 +549,7 @@ fn password_update_client_phase1(
     Some(PasswordUpdateClientPhase1 { ct_ch })
 }
 
-fn password_update_respond2(
+pub fn password_update_respond2(
     srv: &augsso::AugSsoServer,
     sess: &PasswordUpdateServerSession,
     ct_ch: &crypto_core::CtBlob<UPDATE_CTCH_PT_LEN>,
@@ -544,7 +575,7 @@ fn password_update_respond2(
     })
 }
 
-fn password_update_client_finalize(
+pub fn password_update_client_finalize(
     st: &PasswordUpdateClientState,
     req: &PasswordUpdateRequest,
     resps: &[PasswordUpdateResponse2],
