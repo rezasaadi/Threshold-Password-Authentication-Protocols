@@ -2,7 +2,7 @@
 name = "upspa-unified-benchmark"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.82"
 license = "MIT"
 publish = false
 
@@ -15,7 +15,12 @@ augsso_bench = { path = "crates/augsso" }
 curve25519-dalek = { version = "4", features = ["alloc", "rand_core"] }
 pastau_bench = { path = "crates/pastau" }
 rand_chacha = "0.3"
-rand_core = "0.6"
+rand_core = { version = "0.6", features = ["getrandom"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+blake3 = "1"
+bls12_381 = "0.8"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
 upspa_bench = { path = "crates/upspa" }
 upspa_quorum_bench = { path = "crates/upspa-quorum" }
 
