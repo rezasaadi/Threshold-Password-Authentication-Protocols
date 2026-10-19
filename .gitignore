@@ -3,3 +3,10 @@
 /results/*.txt
 *.tmp
 
+# Generated Python caches and new measurement runs
+__pycache__/
+*.py[cod]
+/measurements/
+/network-state/
+/paper-raw-*/
+/paper-preflight-*/

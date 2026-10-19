@@ -1,0 +1,49 @@
+test_all_native_outcomes_are_evidence_not_runner_errors (test_measure_all.EvidenceTests.test_all_native_outcomes_are_evidence_not_runner_errors) ... ok
+test_duplicate_and_missing_measured_rows_rejected (test_measure_all.EvidenceTests.test_duplicate_and_missing_measured_rows_rejected) ... ok
+test_recovery_row_cannot_replace_primary_measurement (test_measure_all.EvidenceTests.test_recovery_row_cannot_replace_primary_measurement) ... ok
+test_wrong_native_config_rejected (test_measure_all.EvidenceTests.test_wrong_native_config_rejected) ... ok
+test_lock_contention_marks_new_run_blocked (test_measure_all.StatusTests.test_lock_contention_marks_new_run_blocked) ... ok
+test_lock_contention_preserves_active_worker_progress (test_measure_all.StatusTests.test_lock_contention_preserves_active_worker_progress) ... ok
+test_plan_has_exact_groups_and_all_15_experiments (test_measure_all.StatusTests.test_plan_has_exact_groups_and_all_15_experiments) ... ok
+test_changed_plan_blocks_before_any_build (test_measure_all.WorkerFlowTests.test_changed_plan_blocks_before_any_build) ... BLOCKED: saved plan changed; start a separate run
+BLOCKED: /tmp/tmp9to03lgq/RESULTS_SUMMARY.md
+ok
+test_failure_continues_and_resume_skips_verified_complete_job (test_measure_all.WorkerFlowTests.test_failure_continues_and_resume_skips_verified_complete_job) ... [pdf-deployment-upspa-n3-t2] attempt 1
+  FAILED: synthetic timeout
+[pdf-deployment-pastau-n3-t2] attempt 1
+INCOMPLETE: /tmp/tmp5al6g8m5/RESULTS_SUMMARY.md
+[pdf-deployment-upspa-n3-t2] attempt 2
+COMPLETE: /tmp/tmp5al6g8m5/RESULTS_SUMMARY.md
+ok
+test_direct_isolation_invocation_refused (test_measurement_process.ProcessTests.test_direct_isolation_invocation_refused) ... ok
+test_natural_leader_exit_does_not_leave_descendant (test_measurement_process.ProcessTests.test_natural_leader_exit_does_not_leave_descendant) ... ok
+test_one_namespace_change_is_insufficient (test_measurement_process.ProcessTests.test_one_namespace_change_is_insufficient) ... ok
+test_success_and_noninteractive_logs (test_measurement_process.ProcessTests.test_success_and_noninteractive_logs) ... ok
+test_timeout_kills_term_ignoring_descendant_after_leader_exits (test_measurement_process.ProcessTests.test_timeout_kills_term_ignoring_descendant_after_leader_exits) ... ok
+test_failed_build_never_falls_back_to_shipped_binary (test_paper_tools.BuildProvenanceTests.test_failed_build_never_falls_back_to_shipped_binary) ... Building bench_network from the current source (no shipped-binary fallback)...
+ok
+test_stale_capability_version_is_rejected (test_paper_tools.BuildProvenanceTests.test_stale_capability_version_is_rejected) ... Building bench_network from the current source (no shipped-binary fallback)...
+ok
+test_all_coordinates_and_comparison_semantics (test_paper_tools.ConfigurationTests.test_all_coordinates_and_comparison_semantics) ... ok
+test_fault_suites_reach_intended_stage (test_paper_tools.ConfigurationTests.test_fault_suites_reach_intended_stage) ... ok
+test_minor_plan_preserves_fault_cases_without_unsupported_grid (test_paper_tools.ConfigurationTests.test_minor_plan_preserves_fault_cases_without_unsupported_grid) ... ok
+test_preflight_keeps_every_config_and_profile (test_paper_tools.ConfigurationTests.test_preflight_keeps_every_config_and_profile) ... ok
+test_supported_grid_meets_password_consistency_and_fault_bounds (test_paper_tools.ConfigurationTests.test_supported_grid_meets_password_consistency_and_fault_bounds) ... ok
+test_unsupported_new_password_has_explicit_warning (test_paper_tools.ConfigurationTests.test_unsupported_new_password_has_explicit_warning) ... ok
+test_explicit_synchronization_is_measured_not_recovery (test_paper_tools.SummaryTests.test_explicit_synchronization_is_measured_not_recovery) ... ok
+test_malformed_evidence_is_not_silently_skipped (test_paper_tools.SummaryTests.test_malformed_evidence_is_not_silently_skipped) ... ok
+test_missing_config_visible_in_availability (test_paper_tools.SummaryTests.test_missing_config_visible_in_availability) ... ok
+test_outcome_denominators_missing_metrics_and_populations (test_paper_tools.SummaryTests.test_outcome_denominators_missing_metrics_and_populations) ... ok
+test_every_job_accepts_native_complete_fixture (test_pdf_comparison_plan.PdfComparisonPlanTests.test_every_job_accepts_native_complete_fixture) ... ok
+test_exact_pdf_grids_groups_and_counts (test_pdf_comparison_plan.PdfComparisonPlanTests.test_exact_pdf_grids_groups_and_counts) ... ok
+test_flags_match_engine_interfaces_and_timing (test_pdf_comparison_plan.PdfComparisonPlanTests.test_flags_match_engine_interfaces_and_timing) ... ok
+test_legacy_rows_are_mapped_without_fabricated_provider_totals (test_pdf_comparison_plan.PdfComparisonPlanTests.test_legacy_rows_are_mapped_without_fabricated_provider_totals) ... ok
+test_missing_component_duplicate_and_bad_profile_fail (test_pdf_comparison_plan.PdfComparisonPlanTests.test_missing_component_duplicate_and_bad_profile_fail) ... ok
+test_partial_wrong_coordinate_and_wrong_sample_files_fail (test_pdf_comparison_plan.PdfComparisonPlanTests.test_partial_wrong_coordinate_and_wrong_sample_files_fail) ... ok
+test_preflight_is_one_sample_and_environment_overrides_are_recorded (test_pdf_comparison_plan.PdfComparisonPlanTests.test_preflight_is_one_sample_and_environment_overrides_are_recorded) ... ok
+test_provider_outputs_use_main_counts_not_internal_full_network_calibration (test_pdf_comparison_plan.PdfComparisonPlanTests.test_provider_outputs_use_main_counts_not_internal_full_network_calibration) ... ok
+
+----------------------------------------------------------------------
+Ran 34 tests in 5.868s
+
+OK

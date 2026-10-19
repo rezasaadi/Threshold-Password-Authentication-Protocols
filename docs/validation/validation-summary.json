@@ -1,0 +1,38 @@
+{
+  "windows_rust": {
+    "passed": 108,
+    "failed": 0,
+    "ignored": 0,
+    "log": "windows-rust-tests.log"
+  },
+  "linux_rust": {
+    "passed": 108,
+    "failed": 0,
+    "ignored": 0,
+    "log": "linux-rust-tests.log"
+  },
+  "linux_final_process_tests": {
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0,
+    "log": "linux-process-tests-final.log"
+  },
+  "python_runner_tests": {
+    "passed": 34,
+    "failed": 0,
+    "environment": "WSL Ubuntu / Python 3.12.3",
+    "command": "python3 -m unittest discover -s scripts -p \"test_*.py\" -v"
+  },
+  "linux_release_build": {
+    "passed": true,
+    "log": "linux-release-build.log"
+  },
+  "shell_scripts_checked": 7,
+  "configs_validated": 9,
+  "namespace_outcomes": {
+    "roupspa": "completed",
+    "pastau": "completed",
+    "augsso": "completed"
+  },
+  "host_namespaces_unchanged": true
+}

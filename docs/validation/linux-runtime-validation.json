@@ -1,0 +1,858 @@
+{
+  "shell_syntax": [
+    {
+      "path": "experiments/run_all.sh",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "experiments/run_exp1.sh",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "experiments/run_exp2.sh",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "experiments/run_exp3.sh",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "run_all_paper_raw.sh",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "run_measurements.sh",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "scripts/run_all_paper_raw.sh",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "smoke_config_validation": [
+    {
+      "path": "config/network-client-restart-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "config/network-loss-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "config/network-password-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "config/network-provider-restart-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "config/network-registration-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "config/network-secret-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "config/network-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "config/network-sync-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "path": "config/network-terminal-fault-smoke.json",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "capabilities": {
+    "account_synchronization": "fail_closed_completion_evidence_missing",
+    "capabilities_version": 2,
+    "fanout": [
+      "all",
+      "minimal"
+    ],
+    "fault_actions": [
+      "suppress",
+      "crash_before",
+      "crash_after",
+      "stop",
+      "restart",
+      "corrupt_partial"
+    ],
+    "identification_synchronization": "equal_local_completed_record_only; higher peer counters require completion evidence",
+    "measurements": "new_source_requires_rebuild_and_rerun",
+    "password_update_consistency_requirement": "read_size >= 2*t_sp - 1; otherwise cleanly abort before writes",
+    "phases": [
+      "setup",
+      "registration",
+      "authentication",
+      "password_update",
+      "secret_update",
+      "synchronization"
+    ],
+    "read_policy": [
+      "quorum",
+      "threshold"
+    ],
+    "read_size": "n_sp - q_sp + t_sp (quorum); t_sp (threshold ablation)",
+    "roupspa_only_phases": [
+      "secret_update",
+      "synchronization"
+    ],
+    "schemes": [
+      "roupspa",
+      "pastau",
+      "augsso"
+    ],
+    "transport": "research_tcp_without_tls"
+  },
+  "namespace_smoke": {
+    "execution": {
+      "rc": 0,
+      "timed_out": false,
+      "elapsed": 71.062565226,
+      "command": [
+        "/usr/bin/unshare",
+        "--mount",
+        "--net",
+        "--propagation",
+        "private",
+        "--",
+        "/usr/bin/python3",
+        "<repository>/scripts/isolated_network.py",
+        "--host-mount-id",
+        "mnt:[4026532220]",
+        "--host-net-id",
+        "net:[4026531840]",
+        "--",
+        "<repository>/target/linux-validation/debug/bench_network",
+        "smoke",
+        "--config",
+        "<repository>/target/integration-namespace-smoke/config.json"
+      ]
+    },
+    "host_namespaces_unchanged": true,
+    "requested_config": {
+      "n_sp": 4,
+      "t_sp": 2,
+      "q_sp": 3,
+      "phase": "authentication",
+      "schemes": [
+        "roupspa",
+        "pastau",
+        "augsso"
+      ],
+      "providers": [
+        "127.0.0.1:19001",
+        "127.0.0.1:19002",
+        "127.0.0.1:19003",
+        "127.0.0.1:19004"
+      ],
+      "login_server": "127.0.0.1:19100",
+      "profiles": [
+        {
+          "name": "smoke",
+          "delay_ms": 0.25,
+          "jitter_ms": 0.0,
+          "bandwidth_mbps": 100.0,
+          "loss_percent": 0.0
+        }
+      ],
+      "loss_levels": [
+        0.0
+      ],
+      "delta_ms": 20,
+      "timeout_ms": 1000,
+      "retry_ms": 5,
+      "warmups": 0,
+      "samples": 1,
+      "repetitions": 1,
+      "connection_policy": "fresh_per_request",
+      "state_dir": "network-state",
+      "output_dir": "<repository>/target/integration-namespace-smoke/runs",
+      "faults": []
+    },
+    "measured_rows": [
+      {
+        "result": {
+          "scheme": "roupspa",
+          "phase": "authentication",
+          "session": "ab4249697bb1cb3900a3cc8700f6fc21b1988d3f95008ac94495e974ac2205d4",
+          "outcome": "completed",
+          "reason": null,
+          "metrics": {
+            "sent_bytes": 1646,
+            "received_bytes": 6601,
+            "sent_messages": 9,
+            "received_messages": 9,
+            "send_ns": 85903,
+            "receive_ns": 121041444,
+            "handler_ns": 153068231,
+            "quorum_ns": 47893316,
+            "terminal_ns": 0,
+            "retries": 0,
+            "timeouts": 0,
+            "client_ns": 47238179,
+            "end_to_end_ns": 80011844,
+            "repair_ns": 0,
+            "terminal_handler_ns": 130900210,
+            "drain_ns": 15892,
+            "read_replies_required": 3,
+            "toprf_subsets_tried": 1,
+            "toprf_consistency_checks": 0,
+            "toprf_combine_ns": 14595372,
+            "id_candidates": 1,
+            "discards": 0,
+            "discard_undelivered": 0,
+            "fanout_extensions": 0,
+            "events": [
+              {
+                "endpoint": "10.231.0.6:19100",
+                "direction": "send",
+                "bytes": 182,
+                "elapsed_ns": 11596,
+                "timestamp_unix_ns": 1792365907333338931,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.6:19100",
+                "direction": "receive",
+                "bytes": 43,
+                "elapsed_ns": 826892,
+                "timestamp_unix_ns": 1792365907334168709,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "send",
+                "bytes": 182,
+                "elapsed_ns": 4684,
+                "timestamp_unix_ns": 1792365907270684351,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "receive",
+                "bytes": 868,
+                "elapsed_ns": 6446564,
+                "timestamp_unix_ns": 1792365907277132553,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "send",
+                "bytes": 182,
+                "elapsed_ns": 7841,
+                "timestamp_unix_ns": 1792365907270600413,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "receive",
+                "bytes": 864,
+                "elapsed_ns": 6137136,
+                "timestamp_unix_ns": 1792365907276739434,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.4:19001",
+                "direction": "send",
+                "bytes": 182,
+                "elapsed_ns": 10494,
+                "timestamp_unix_ns": 1792365907270831580,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.4:19001",
+                "direction": "receive",
+                "bytes": 868,
+                "elapsed_ns": 6409894,
+                "timestamp_unix_ns": 1792365907277243199,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.5:19001",
+                "direction": "send",
+                "bytes": 182,
+                "elapsed_ns": 4842,
+                "timestamp_unix_ns": 1792365907270697482,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.5:19001",
+                "direction": "receive",
+                "bytes": 874,
+                "elapsed_ns": 6208427,
+                "timestamp_unix_ns": 1792365907276906795,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "send",
+                "bytes": 184,
+                "elapsed_ns": 21189,
+                "timestamp_unix_ns": 1792365907292824853,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "receive",
+                "bytes": 771,
+                "elapsed_ns": 23150905,
+                "timestamp_unix_ns": 1792365907315979576,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "send",
+                "bytes": 184,
+                "elapsed_ns": 10249,
+                "timestamp_unix_ns": 1792365907292859563,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "receive",
+                "bytes": 771,
+                "elapsed_ns": 24673135,
+                "timestamp_unix_ns": 1792365907317534991,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.4:19001",
+                "direction": "send",
+                "bytes": 184,
+                "elapsed_ns": 5374,
+                "timestamp_unix_ns": 1792365907292907132,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.4:19001",
+                "direction": "receive",
+                "bytes": 771,
+                "elapsed_ns": 23223216,
+                "timestamp_unix_ns": 1792365907316132503,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.5:19001",
+                "direction": "send",
+                "bytes": 184,
+                "elapsed_ns": 9634,
+                "timestamp_unix_ns": 1792365907292843319,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.5:19001",
+                "direction": "receive",
+                "bytes": 771,
+                "elapsed_ns": 23965275,
+                "timestamp_unix_ns": 1792365907316810513,
+                "error": null
+              }
+            ]
+          },
+          "terminal_processing_observed": null,
+          "client_measurement_unavailable": false,
+          "measurement_source": "client sockets and independent endpoint handlers"
+        },
+        "run_id": "roupspa-p0-smoke-l0-loss0-rep0-sample0",
+        "profile": "smoke",
+        "loss_percent": 0.0,
+        "repetition": 0,
+        "sample": 0,
+        "warmup": false,
+        "fixture": false,
+        "process_wall_ns": 106845360,
+        "provider_handler_ns": 22156886,
+        "login_handler_ns": 130911345
+      },
+      {
+        "result": {
+          "scheme": "pastau",
+          "phase": "authentication",
+          "session": "d0d8bd7f26539ba340831e307d81ce5c",
+          "outcome": "completed",
+          "reason": null,
+          "metrics": {
+            "sent_bytes": 1304,
+            "received_bytes": 1013,
+            "sent_messages": 3,
+            "received_messages": 3,
+            "send_ns": 40164,
+            "receive_ns": 82218641,
+            "handler_ns": 79648303,
+            "quorum_ns": 25252928,
+            "terminal_ns": 0,
+            "retries": 0,
+            "timeouts": 0,
+            "client_ns": 57329891,
+            "end_to_end_ns": 119318984,
+            "repair_ns": 0,
+            "terminal_handler_ns": 0,
+            "drain_ns": 0,
+            "read_replies_required": 0,
+            "toprf_subsets_tried": 0,
+            "toprf_consistency_checks": 0,
+            "toprf_combine_ns": 0,
+            "id_candidates": 0,
+            "discards": 0,
+            "discard_undelivered": 0,
+            "fanout_extensions": 0,
+            "events": [
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "send",
+                "bytes": 415,
+                "elapsed_ns": 14409,
+                "timestamp_unix_ns": 1792365931092025113,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "receive",
+                "bytes": 483,
+                "elapsed_ns": 23694545,
+                "timestamp_unix_ns": 1792365931115723796,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "send",
+                "bytes": 415,
+                "elapsed_ns": 8994,
+                "timestamp_unix_ns": 1792365931091944176,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "receive",
+                "bytes": 483,
+                "elapsed_ns": 22754416,
+                "timestamp_unix_ns": 1792365931114703547,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.6:19100",
+                "direction": "send",
+                "bytes": 474,
+                "elapsed_ns": 16761,
+                "timestamp_unix_ns": 1792365931145244438,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.6:19100",
+                "direction": "receive",
+                "bytes": 47,
+                "elapsed_ns": 35769680,
+                "timestamp_unix_ns": 1792365931181022623,
+                "error": null
+              }
+            ]
+          },
+          "terminal_processing_observed": null,
+          "client_measurement_unavailable": false,
+          "measurement_source": "client sockets and independent endpoint handlers"
+        },
+        "run_id": "pastau-p0-smoke-l0-loss0-rep0-sample0",
+        "profile": "smoke",
+        "loss_percent": 0.0,
+        "repetition": 0,
+        "sample": 0,
+        "warmup": false,
+        "fixture": false,
+        "process_wall_ns": 137945913,
+        "provider_handler_ns": 44763039,
+        "login_handler_ns": 34885264
+      },
+      {
+        "result": {
+          "scheme": "augsso",
+          "phase": "authentication",
+          "session": "464bead61b539c3fac6e825b5c2f4f17",
+          "outcome": "completed",
+          "reason": null,
+          "metrics": {
+            "sent_bytes": 2077,
+            "received_bytes": 2673,
+            "sent_messages": 5,
+            "received_messages": 5,
+            "send_ns": 65141,
+            "receive_ns": 248828525,
+            "handler_ns": 239024998,
+            "quorum_ns": 112241036,
+            "terminal_ns": 0,
+            "retries": 0,
+            "timeouts": 0,
+            "client_ns": 225746707,
+            "end_to_end_ns": 404536559,
+            "repair_ns": 0,
+            "terminal_handler_ns": 0,
+            "drain_ns": 0,
+            "read_replies_required": 0,
+            "toprf_subsets_tried": 0,
+            "toprf_consistency_checks": 0,
+            "toprf_combine_ns": 0,
+            "id_candidates": 0,
+            "discards": 0,
+            "discard_undelivered": 0,
+            "fanout_extensions": 0,
+            "events": [
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "send",
+                "bytes": 471,
+                "elapsed_ns": 10135,
+                "timestamp_unix_ns": 1792365956844947483,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "receive",
+                "bytes": 710,
+                "elapsed_ns": 76438920,
+                "timestamp_unix_ns": 1792365956921391887,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "send",
+                "bytes": 471,
+                "elapsed_ns": 24473,
+                "timestamp_unix_ns": 1792365956844993486,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "receive",
+                "bytes": 717,
+                "elapsed_ns": 39640497,
+                "timestamp_unix_ns": 1792365956884638250,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "send",
+                "bytes": 321,
+                "elapsed_ns": 9307,
+                "timestamp_unix_ns": 1792365956968881522,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.2:19001",
+                "direction": "receive",
+                "bytes": 607,
+                "elapsed_ns": 33533377,
+                "timestamp_unix_ns": 1792365957002418134,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "send",
+                "bytes": 331,
+                "elapsed_ns": 10634,
+                "timestamp_unix_ns": 1792365956968854793,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.3:19001",
+                "direction": "receive",
+                "bytes": 592,
+                "elapsed_ns": 33559949,
+                "timestamp_unix_ns": 1792365957002418109,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.6:19100",
+                "direction": "send",
+                "bytes": 483,
+                "elapsed_ns": 10592,
+                "timestamp_unix_ns": 1792365957047000055,
+                "error": null
+              },
+              {
+                "endpoint": "10.231.0.6:19100",
+                "direction": "receive",
+                "bytes": 47,
+                "elapsed_ns": 65655782,
+                "timestamp_unix_ns": 1792365957112663395,
+                "error": null
+              }
+            ]
+          },
+          "terminal_processing_observed": null,
+          "client_measurement_unavailable": false,
+          "measurement_source": "client sockets and independent endpoint handlers"
+        },
+        "run_id": "augsso-p0-smoke-l0-loss0-rep0-sample0",
+        "profile": "smoke",
+        "loss_percent": 0.0,
+        "repetition": 0,
+        "sample": 0,
+        "warmup": false,
+        "fixture": false,
+        "process_wall_ns": 524303531,
+        "provider_handler_ns": 174492343,
+        "login_handler_ns": 64532655
+      }
+    ],
+    "summary": {
+      "augsso:authentication:smoke:loss0": {
+        "all_attempt_elapsed_ns": 404536559,
+        "application_bytes": 4750,
+        "application_messages": 10,
+        "attempts": 1,
+        "attempts_without_client_telemetry": 0,
+        "completed_p50_ns": 404536559,
+        "completed_p95_ns": 404536559,
+        "denominator": "all measured attempts including unsuccessful; recovery phases separate; every fixture/warmup outcome also in session-outcomes.json",
+        "outcomes": {
+          "completed": 1
+        },
+        "retransmissions": 0,
+        "successes": 1,
+        "timeouts": 0,
+        "timings": {
+          "client": {
+            "p50_ns": 225746707,
+            "p95_ns": 225746707,
+            "samples": 1
+          },
+          "drain": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "end_to_end": {
+            "p50_ns": 404536559,
+            "p95_ns": 404536559,
+            "samples": 1
+          },
+          "end_to_end_excl_terminal_wait": {
+            "p50_ns": 404536559,
+            "p95_ns": 404536559,
+            "samples": 1
+          },
+          "login_handler": {
+            "p50_ns": 64532655,
+            "p95_ns": 64532655,
+            "samples": 1
+          },
+          "process_wall": {
+            "p50_ns": 524303531,
+            "p95_ns": 524303531,
+            "samples": 1
+          },
+          "provider_handler": {
+            "p50_ns": 174492343,
+            "p95_ns": 174492343,
+            "samples": 1
+          },
+          "quorum": {
+            "p50_ns": 112241036,
+            "p95_ns": 112241036,
+            "samples": 1
+          },
+          "repair": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "terminal_delivery_wait": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "terminal_handler": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "toprf_combine": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          }
+        },
+        "traffic_note": "client socket observations plus initiated peer traffic; crashed clients use explicitly marked endpoint observations, which may omit interrupted prefixes; retry counts unavailable for killed clients"
+      },
+      "pastau:authentication:smoke:loss0": {
+        "all_attempt_elapsed_ns": 119318984,
+        "application_bytes": 2317,
+        "application_messages": 6,
+        "attempts": 1,
+        "attempts_without_client_telemetry": 0,
+        "completed_p50_ns": 119318984,
+        "completed_p95_ns": 119318984,
+        "denominator": "all measured attempts including unsuccessful; recovery phases separate; every fixture/warmup outcome also in session-outcomes.json",
+        "outcomes": {
+          "completed": 1
+        },
+        "retransmissions": 0,
+        "successes": 1,
+        "timeouts": 0,
+        "timings": {
+          "client": {
+            "p50_ns": 57329891,
+            "p95_ns": 57329891,
+            "samples": 1
+          },
+          "drain": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "end_to_end": {
+            "p50_ns": 119318984,
+            "p95_ns": 119318984,
+            "samples": 1
+          },
+          "end_to_end_excl_terminal_wait": {
+            "p50_ns": 119318984,
+            "p95_ns": 119318984,
+            "samples": 1
+          },
+          "login_handler": {
+            "p50_ns": 34885264,
+            "p95_ns": 34885264,
+            "samples": 1
+          },
+          "process_wall": {
+            "p50_ns": 137945913,
+            "p95_ns": 137945913,
+            "samples": 1
+          },
+          "provider_handler": {
+            "p50_ns": 44763039,
+            "p95_ns": 44763039,
+            "samples": 1
+          },
+          "quorum": {
+            "p50_ns": 25252928,
+            "p95_ns": 25252928,
+            "samples": 1
+          },
+          "repair": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "terminal_delivery_wait": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "terminal_handler": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "toprf_combine": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          }
+        },
+        "traffic_note": "client socket observations plus initiated peer traffic; crashed clients use explicitly marked endpoint observations, which may omit interrupted prefixes; retry counts unavailable for killed clients"
+      },
+      "roupspa:authentication:smoke:loss0": {
+        "all_attempt_elapsed_ns": 80011844,
+        "application_bytes": 8247,
+        "application_messages": 18,
+        "attempts": 1,
+        "attempts_without_client_telemetry": 0,
+        "completed_p50_ns": 80011844,
+        "completed_p95_ns": 80011844,
+        "denominator": "all measured attempts including unsuccessful; recovery phases separate; every fixture/warmup outcome also in session-outcomes.json",
+        "outcomes": {
+          "completed": 1
+        },
+        "retransmissions": 0,
+        "successes": 1,
+        "timeouts": 0,
+        "timings": {
+          "client": {
+            "p50_ns": 47238179,
+            "p95_ns": 47238179,
+            "samples": 1
+          },
+          "drain": {
+            "p50_ns": 15892,
+            "p95_ns": 15892,
+            "samples": 1
+          },
+          "end_to_end": {
+            "p50_ns": 80011844,
+            "p95_ns": 80011844,
+            "samples": 1
+          },
+          "end_to_end_excl_terminal_wait": {
+            "p50_ns": 80011844,
+            "p95_ns": 80011844,
+            "samples": 1
+          },
+          "login_handler": {
+            "p50_ns": 130911345,
+            "p95_ns": 130911345,
+            "samples": 1
+          },
+          "process_wall": {
+            "p50_ns": 106845360,
+            "p95_ns": 106845360,
+            "samples": 1
+          },
+          "provider_handler": {
+            "p50_ns": 22156886,
+            "p95_ns": 22156886,
+            "samples": 1
+          },
+          "quorum": {
+            "p50_ns": 47893316,
+            "p95_ns": 47893316,
+            "samples": 1
+          },
+          "repair": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "terminal_delivery_wait": {
+            "p50_ns": 0,
+            "p95_ns": 0,
+            "samples": 1
+          },
+          "terminal_handler": {
+            "p50_ns": 130900210,
+            "p95_ns": 130900210,
+            "samples": 1
+          },
+          "toprf_combine": {
+            "p50_ns": 14595372,
+            "p95_ns": 14595372,
+            "samples": 1
+          }
+        },
+        "traffic_note": "client socket observations plus initiated peer traffic; crashed clients use explicitly marked endpoint observations, which may omit interrupted prefixes; retry counts unavailable for killed clients"
+      }
+    }
+  }
+}

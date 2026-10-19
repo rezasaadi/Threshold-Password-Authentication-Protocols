@@ -1,0 +1,206 @@
+   Compiling upspa-unified-benchmark v0.1.0 (<repository>)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.04s
+     Running unittests src\lib.rs (target\debug\deps\augsso_bench-65464f561726678a.exe)
+
+running 1 test
+test protocols::augsso::tests::roundtrip_auth_and_verify_token ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+     Running tests\password_update_api.rs (target\debug\deps\password_update_api-65e84c692d77c54a.exe)
+
+running 1 test
+test exposed_password_update_authenticates_old_password_and_changes_server_key ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+     Running unittests src\lib.rs (target\debug\deps\pastau_bench-2eb47c812596f53c.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\upspa_unified_benchmark-50aaab5be204eead.exe)
+
+running 7 tests
+test network::common::tests::intersection_boundary ... ok
+test network::common::tests::malformed_network_is_rejected ... ok
+test network::roupspa::tests::login_terminal_is_exact_session_bound_and_replayable ... ok
+test network::roupspa::tests::provider_replay_exact_session_and_restart ... ok
+test network::roupspa::tests::synchronization_never_resurrects_a_locally_discarded_password_record ... ok
+test network::roupspa::tests::higher_signed_sync_candidate_requires_local_terminal_evidence ... ok
+test network::harness::tests::denominators_include_failures ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running unittests src\bin\bench_modern.rs (target\debug\deps\bench_modern-fb8fa08b6198a5a0.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\bench_modern_tcp.rs (target\debug\deps\bench_modern_tcp-59ade538e6b58d14.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\bench_network.rs (target\debug\deps\bench_network-85f52011f09750f6.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\bench_unified.rs (target\debug\deps\bench_unified-bb434fb90de9b23a.exe)
+
+running 13 tests
+test tests::every_explicit_quorum_tuple_is_validated ... ok
+test tests::authentication_uses_threshold_availability_not_quorum_availability ... ok
+test tests::all_required_operations_and_hyphenated_sync_aliases_parse ... ok
+test tests::legacy_password_flag_cannot_change_modern_arguments ... ok
+test tests::revised_default_runs_only_upspa_and_roupspa ... ok
+test tests::default_quorum_is_the_minimum_strict_intersection_quorum ... ok
+test tests::explicit_offline_count_is_bounded_by_selected_quorum ... ok
+test tests::network_profile_is_derived_for_historical_rows ... ok
+test tests::roupspa_public_name_and_aliases_are_stable ... ok
+test tests::explicit_all_retains_historical_schemes ... ok
+test tests::roupspa_receives_explicit_quorum_and_delivery_bound ... ok
+test tests::merge_uses_column_names_and_forces_public_scheme_name ... ok
+test tests::synchronization_rejects_a_quorum_with_no_external_donor_set ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\network_baselines.rs (target\debug\deps\network_baselines-1b3d863d667481ec.exe)
+
+running 3 tests
+test pastau_independent_processes_and_restart ... ok
+test preserved_modern_tcp_label_connects_to_external_addresses ... ok
+test augsso_independent_processes_and_restart ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+
+     Running tests\network_harness.rs (target\debug\deps\network_harness-47a573cd9d5761f1.exe)
+
+running 2 tests
+test suppressed_terminal_is_unresolved_and_in_denominator ... ok
+test healthy_harness_executes_actual_password_update_for_all_schemes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.62s
+
+     Running tests\network_roupspa.rs (target\debug\deps\network_roupspa-d9710dcc336e4d26.exe)
+
+running 15 tests
+test synchronization_does_not_bypass_an_unfinished_client_session ... ok
+test repeated_fixed_password_update_is_a_no_write_abort ... ok
+test login_server_discard_decision_survives_client_crash ... ok
+test signed_direct_write_is_not_a_completed_account_and_all_provider_quorum_cannot_repair ... ok
+test password_update_aborts_when_consistency_has_too_few_honest_constraints ... ok
+test clean_prewrite_discard_and_exact_resume_at_quorum_boundary ... ok
+test provider_and_login_crashes_before_and_after_durable_transition ... ok
+test synchronization_requires_q_other_responses_and_does_not_assert_account_completion ... ok
+test client_crashes_preserve_exact_unfinished_session ... ok
+test password_update_quorum_failure_is_discarded_and_counter_reused ... ok
+test reads_wait_for_r_and_tolerate_invalid_toprf_contributions ... ok
+test missed_whole_message_old_password_gap_needs_threshold_reads ... ok
+test healthy_real_processes_persistence_restart_and_threshold ... ok
+test terminal_endpoint_crashes_and_identical_redelivery ... ok
+test password_update_discard_decision_survives_client_crash ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.98s
+
+     Running tests\network_transport.rs (target\debug\deps\network_transport-1adee835b8f78825.exe)
+
+running 9 tests
+test oversized_response_header_is_measured_and_rejected_before_allocation ... ok
+test completed_error_reply_is_counted_as_actual_network_traffic ... ok
+test one_way_send_does_not_wait_for_or_count_an_application_response ... ok
+test truncated_response_counts_received_prefix_without_completed_message ... ok
+test socket_measurements_count_exact_framed_bytes_and_fragmented_reads ... ok
+test malformed_terminal_has_no_error_response ... ok
+test rejected_terminal_stays_one_way_and_has_independent_failure_evidence ... ok
+test suppressing_a_whole_action_does_not_durably_run_its_handler ... ok
+test endpoint_transport_log_includes_its_actual_reply_bytes ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running unittests src\lib.rs (target\debug\deps\upspa_bench-c14d01b0c8241208.exe)
+
+running 23 tests
+test benchmark::tests::output_schema_has_exactly_thirty_three_columns ... ok
+test protocols::messages::tests::password_update_encoding_binds_uid_first_and_every_required_field ... ok
+test protocols::login_server::tests::exact_prepare_and_store_replays_are_idempotent ... ok
+test protocols::system::tests::provider_specific_suids_change_with_provider_and_domain ... ok
+test protocols::login_server::tests::discard_preserves_old_verifier ... ok
+test protocols::provider::tests::pending_accounts_are_invisible_and_discard_preserves_committed ... ok
+test protocols::login_server::tests::update_keeps_old_verifier_active_until_matching_store ... ok
+test protocols::provider::tests::password_update_is_tentative_idempotent_and_atomic_on_store ... ok
+test protocols::provider::tests::password_update_discard_preserves_the_old_root_and_share ... ok
+test protocols::system::tests::setup_requires_all_and_rejects_duplicates ... ok
+test protocols::provider::tests::password_signature_binds_every_field ... ok
+test benchmark::tests::component_rows_report_only_measured_role_work_and_full_rows_report_all_roles ... ok
+test protocols::system::tests::failed_registration_prepare_discards_every_matching_pending_record ... ok
+test benchmark::tests::trace_network_model_consumes_emitted_stages ... ok
+test protocols::system::tests::identification_contacts_each_selected_provider_exactly_once ... ok
+test protocols::system::tests::failed_rollback_is_retained_until_every_accepted_provider_acknowledges_discard ... ok
+test protocols::system::tests::authentication_reports_fewer_than_threshold_valid_account_responses_after_identification ... ok
+test protocols::system::tests::authentication_uses_any_threshold_but_not_fewer ... ok
+test protocols::system::tests::failed_password_update_discards_only_its_matching_tentative_records ... ok
+test protocols::system::tests::partial_store_retains_family_and_retries_only_missing_acknowledgement ... ok
+test protocols::system::tests::password_update_rotates_every_share_and_preserves_root_secrets ... ok
+test protocols::system::tests::complete_phases_mutate_real_provider_and_login_server_state ... ok
+test benchmark::tests::smoke_run_emits_only_complete_thirty_three_column_upspa_rows ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running unittests src\lib.rs (target\debug\deps\upspa_quorum_bench-7da48896c492c622.exe)
+
+running 8 tests
+test benchmark::tests::availability_bounds_follow_each_protocol_phase ... ok
+test benchmark::tests::processing_split_uses_instrumented_regions_and_client_residual ... ok
+test benchmark::tests::quorum_phase_rejects_authentication_only_availability - should panic ... ok
+test crypto::toprf_robustness_tests::combinations_are_complete_and_ordered ... ok
+test crypto::toprf_robustness_tests::interpolation_at_zero_matches_existing_formula ... ok
+test benchmark::tests::synchronization_rejects_a_full_quorum_tuple - should panic ... ok
+test benchmark::tests::component_rows_report_only_the_selected_instrumented_role ... ok
+test crypto::toprf_robustness_tests::consistency_accepts_honest_and_rejects_one_bad_contribution ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+
+     Running tests\roupspa_protocol.rs (target\debug\deps\roupspa_protocol-97db4dc2c8fdaabe.exe)
+
+running 22 tests
+test canonical_uid_encoding_is_unambiguous ... ok
+test setup_requires_all_and_duplicate_is_rejected ... ok
+test threshold_validation_uses_strict_intersection_without_majority_tsp ... ok
+test tentative_identification_is_hidden_and_store_keeps_share ... ok
+test account_signatures_bind_every_field_and_counters_are_exact ... ok
+test prewrite_account_abort_discards_only_ls_prepare ... ok
+test ls_prepare_rejection_precedes_and_prevents_provider_writes ... ok
+test account_step_targets_are_nonempty_deduplicated_and_prevalidated ... ok
+test partial_write_is_unresolved_frozen_and_blocks_family ... ok
+test synchronization_requires_the_recovering_provider_to_be_reachable ... ok
+test unresolved_password_write_blocks_and_retries_identical_tuple ... ok
+test identification_rejects_internal_counter_mismatch_and_tied_maximum ... ok
+test password_step_targets_are_nonempty_and_prevalidated ... ok
+test chained_seven_two_five_account_recovery_uses_repaired_replica ... ok
+test password_update_uses_same_shares_and_has_no_final_ack ... ok
+test authentication_needs_tsp_active_valid_accounts_without_writeback ... ok
+test synchronization_counts_valid_records_and_preserves_share ... ok
+test registration_order_shared_suid_and_terminal_is_one_way ... ok
+test identification_synchronization_verifies_positive_counter_and_keeps_share ... ok
+test identification_synchronization_can_restore_a_missing_root_without_changing_its_share ... ok
+test secret_update_is_direct_but_ls_old_verifier_stays_current_until_store ... ok
+test account_read_rejects_tied_maximum_and_internal_counter_mismatch ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+     Running tests\roupspa_protocol_gaps.rs (target\debug\deps\roupspa_protocol_gaps-5fa05c8d581bf057.exe)
+
+running 4 tests
+test full_write_quorum_does_not_allow_recovery_from_other_providers ... ok
+test undetected_missed_secret_write_selects_old_account_and_login_server_rejects ... ok
+test undetected_missed_password_write_allows_old_password_threshold_authentication ... ok
+test independent_synchronization_can_install_direct_write_before_login_server_store ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
