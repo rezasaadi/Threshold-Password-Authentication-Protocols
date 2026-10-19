@@ -9,11 +9,26 @@ use rand_core::RngCore;
 pub const NONCE_LEN: usize = 24;
 pub const TAG_LEN: usize = 16;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CtBlob<const PT_LEN: usize> {
     pub nonce: [u8; NONCE_LEN],
     pub ct: [u8; PT_LEN],
     pub tag: [u8; TAG_LEN],
+}
+
+impl<const PT_LEN: usize> CtBlob<PT_LEN> {
+    /// Canonical wire representation: `nonce24 || ciphertext || tag16`.
+    pub fn encode(&self) -> Vec<u8> {
+        let mut encoded = Vec::with_capacity(NONCE_LEN + PT_LEN + TAG_LEN);
+        encoded.extend_from_slice(&self.nonce);
+        encoded.extend_from_slice(&self.ct);
+        encoded.extend_from_slice(&self.tag);
+        encoded
+    }
+
+    pub const fn encoded_len() -> usize {
+        NONCE_LEN + PT_LEN + TAG_LEN
+    }
 }
 
 pub fn hash_to_point(msg: &[u8]) -> RistrettoPoint {
@@ -81,12 +96,12 @@ pub fn xchacha_decrypt_detached<const PT_LEN: usize>(
     Ok(pt)
 }
 
-pub fn hash_suid(rsp: &[u8; 32], lsj: &[u8], i: u32) -> [u8; 32] {
+pub fn hash_upspa_suid(rsp: &[u8; 32], lsj: &[u8], provider_index: u32) -> [u8; 32] {
     let mut h = blake3::Hasher::new();
-    h.update(b"uptspa/suid");
+    h.update(b"upspa/suid/v1");
     h.update(rsp);
     h.update(lsj);
-    h.update(&i.to_le_bytes());
+    h.update(&provider_index.to_le_bytes());
 
     let out = h.finalize();
     let mut r = [0u8; 32];
@@ -94,9 +109,14 @@ pub fn hash_suid(rsp: &[u8; 32], lsj: &[u8], i: u32) -> [u8; 32] {
     r
 }
 
+/// Backwards-compatible name for the provider-specific UpSPA account identifier.
+pub fn hash_suid(rsp: &[u8; 32], lsj: &[u8], provider_index: u32) -> [u8; 32] {
+    hash_upspa_suid(rsp, lsj, provider_index)
+}
+
 pub fn hash_vinfo(rlsj: &[u8; 32], lsj: &[u8]) -> [u8; 32] {
     let mut h = blake3::Hasher::new();
-    h.update(b"uptspa/vinfo");
+    h.update(b"upspa/vinfo/v1");
     h.update(rlsj);
     h.update(lsj);
 
