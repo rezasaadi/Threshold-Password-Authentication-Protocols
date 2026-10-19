@@ -1,0 +1,23 @@
+   Compiling upspa-unified-benchmark v0.1.0 (<repository>)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.09s
+     Running tests/network_baselines.rs (<build-directory>/debug/deps/network_baselines-68738ec019aa5db8)
+
+running 3 tests
+test preserved_modern_tcp_label_connects_to_external_addresses ... ok
+pastau process state: /tmp/upspa-baseline-pastau-3477-1791163445545052663
+test pastau_independent_processes_and_restart ... ok
+augsso process state: /tmp/upspa-baseline-augsso-3477-1791163445545001638
+test augsso_independent_processes_and_restart ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+
+     Running tests/network_harness.rs (<build-directory>/debug/deps/network_harness-7b370f2d9786867c)
+
+running 2 tests
+test suppressed_terminal_is_unresolved_and_in_denominator ... ok
+terminal suppression raw evidence: /tmp/upspa-harness-terminal-suppression-3581-1791163446740638360/results/run-1791163446748097216
+healthy harness raw evidence: /tmp/upspa-harness-healthy-3581-1791163446740921136/results/run-1791163446750156573
+test healthy_harness_executes_actual_password_update_for_all_schemes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.65s
+

@@ -1,0 +1,6 @@
+{
+  "roupspa:authentication:completed:fixturefalse:warmupfalse": 1,
+  "roupspa:authentication:completed:fixturetrue:warmupfalse": 1,
+  "roupspa:registration:completed:fixturetrue:warmupfalse": 1,
+  "roupspa:setup:completed:fixturetrue:warmupfalse": 1
+}

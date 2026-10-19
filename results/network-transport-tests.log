@@ -1,0 +1,17 @@
+   Compiling upspa-unified-benchmark v0.1.0 (<repository>)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.71s
+     Running tests\network_transport.rs (target\debug\deps\network_transport-1adee835b8f78825.exe)
+
+running 9 tests
+test oversized_response_header_is_measured_and_rejected_before_allocation ... ok
+test completed_error_reply_is_counted_as_actual_network_traffic ... ok
+test socket_measurements_count_exact_framed_bytes_and_fragmented_reads ... ok
+test truncated_response_counts_received_prefix_without_completed_message ... ok
+test one_way_send_does_not_wait_for_or_count_an_application_response ... ok
+test malformed_terminal_has_no_error_response ... ok
+test suppressing_a_whole_action_does_not_durably_run_its_handler ... ok
+test rejected_terminal_stays_one_way_and_has_independent_failure_evidence ... ok
+test endpoint_transport_log_includes_its_actual_reply_bytes ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+

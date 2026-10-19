@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running tests\password_update_api.rs (target\debug\deps\password_update_api-95e803754dc0cf7c.exe)
+
+running 1 test
+test exposed_password_update_authenticates_old_password_and_changes_server_key ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+

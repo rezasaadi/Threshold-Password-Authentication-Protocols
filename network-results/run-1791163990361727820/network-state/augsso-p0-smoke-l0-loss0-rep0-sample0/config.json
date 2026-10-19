@@ -1,0 +1,40 @@
+{
+  "n_sp": 4,
+  "t_sp": 2,
+  "q_sp": 3,
+  "phase": "registration",
+  "schemes": [
+    "roupspa",
+    "pastau",
+    "augsso"
+  ],
+  "providers": [
+    "10.231.0.2:19001",
+    "10.231.0.3:19001",
+    "10.231.0.4:19001",
+    "10.231.0.5:19001"
+  ],
+  "login_server": "10.231.0.6:19100",
+  "profiles": [
+    {
+      "name": "smoke",
+      "delay_ms": 0.25,
+      "jitter_ms": 0.0,
+      "bandwidth_mbps": 100.0,
+      "loss_percent": 0.0
+    }
+  ],
+  "loss_levels": [
+    0.0
+  ],
+  "delta_ms": 40,
+  "timeout_ms": 1000,
+  "retry_ms": 5,
+  "warmups": 0,
+  "samples": 1,
+  "repetitions": 1,
+  "connection_policy": "fresh_per_request",
+  "state_dir": "network-state",
+  "output_dir": "network-results",
+  "faults": []
+}

@@ -1,0 +1,77 @@
+{
+  "scheme": "pastau",
+  "phase": "authentication",
+  "session": "8227aa123d6bdaa0c4beca0bf35e548e",
+  "outcome": "completed",
+  "reason": null,
+  "metrics": {
+    "sent_bytes": 1298,
+    "received_bytes": 1003,
+    "sent_messages": 3,
+    "received_messages": 3,
+    "send_ns": 361172,
+    "receive_ns": 178515508,
+    "handler_ns": 176209746,
+    "quorum_ns": 84595908,
+    "terminal_ns": 0,
+    "retries": 0,
+    "timeouts": 0,
+    "client_ns": 184414134,
+    "end_to_end_ns": 286981418,
+    "repair_ns": 0,
+    "terminal_handler_ns": 0,
+    "events": [
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 411,
+        "elapsed_ns": 325299,
+        "timestamp_unix_ns": 1791163886710609085,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "receive",
+        "bytes": 471,
+        "elapsed_ns": 78749727,
+        "timestamp_unix_ns": 1791163886789361272,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 411,
+        "elapsed_ns": 30045,
+        "timestamp_unix_ns": 1791163886710185026,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "receive",
+        "bytes": 485,
+        "elapsed_ns": 82390252,
+        "timestamp_unix_ns": 1791163886792577364,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.6:19100",
+        "direction": "send",
+        "bytes": 476,
+        "elapsed_ns": 5828,
+        "timestamp_unix_ns": 1791163886793995327,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.6:19100",
+        "direction": "receive",
+        "bytes": 47,
+        "elapsed_ns": 17375529,
+        "timestamp_unix_ns": 1791163886811372073,
+        "error": null
+      }
+    ]
+  },
+  "terminal_processing_observed": null,
+  "client_measurement_unavailable": false,
+  "measurement_source": "client sockets and independent endpoint handlers"
+}

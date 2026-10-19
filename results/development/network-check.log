@@ -1,0 +1,46 @@
+    Blocking waiting for file lock on build directory
+    Checking upspa_quorum_bench v0.1.0 (<repository>\crates\upspa-quorum)
+    Checking upspa_bench v0.1.0 (<repository>\crates\upspa)
+    Checking augsso_bench v0.1.0 (<repository>\crates\augsso)
+    Checking pastau_bench v0.1.0 (<repository>\crates\pastau)
+warning: unused import: `io::Write`
+ --> src\network\harness.rs:4:51
+  |
+4 | use std::{collections::BTreeMap, fs::{self,File}, io::Write, path::{Path,PathBuf}, process::{Child,Command,Stdio}, thread, time::{Duratio...
+  |                                                   ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `PathBuf`
+  --> src\network\roupspa.rs:13:23
+   |
+13 | use std::path::{Path, PathBuf};
+   |                       ^^^^^^^
+
+warning: unused import: `AccountReplica`
+  --> src\network\roupspa.rs:21:23
+   |
+21 |     AccountFamilyKey, AccountReplica, IdentificationReplica, ReplicaStatus, RoUpSpaProvider,
+   |                       ^^^^^^^^^^^^^^
+
+warning: value assigned to `last_send` is never read
+   --> src\network\roupspa.rs:466:23
+    |
+466 |     let mut last_send=Instant::now();let deadline=Instant::now()+Duration::from_millis(cfg.delta_ms);
+    |                       ^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+    Checking upspa-unified-benchmark v0.1.0 (<repository>)
+warning: `upspa-unified-benchmark` (lib) generated 4 warnings (run `cargo fix --lib -p upspa-unified-benchmark` to apply 3 suggestions)
+error: no rules expected `3u8`
+   --> src\network\roupspa.rs:618:124
+    |
+618 |         let prepare=json!({"action":"ls_prepare","session":"22".repeat(32),"uid":DEFAULT_UID,"old_vinfo":null,"new_vinfo":[3u8;32]});
+    |                                                                                                                            ^^^ no rules expected this token in macro call
+    |
+    = note: while trying to match end of macro
+
+error: could not compile `upspa-unified-benchmark` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

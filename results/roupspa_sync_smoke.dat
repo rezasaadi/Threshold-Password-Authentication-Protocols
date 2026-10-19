@@ -1,0 +1,3 @@
+scheme phase kind net_profile nsp tsp qsp unavailable delivery_bound_ns samples warmup client_ns provider_ns login_server_ns network_ns total_ns identification_stage_ns account_read_stage_ns prepare_stage_ns write_stage_ns terminal_stage_ns request_bytes response_bytes message_count acknowledgement_count result rng_in_timed min_ns p50_ns p95_ns max_ns mean_ns stddev_ns
+roupspa sync_ident full_no_net none 7 2 5 2 300512 5 2 122720 260 0 0 122980 0 0 0 0 0 215 1245 10 5 completed 0 119900 122600 124300 127900 122980.000 3290.441
+roupspa sync_account full_no_net none 7 2 5 2 300512 5 2 127580 580 0 0 128160 0 0 0 0 0 215 765 10 5 completed 0 122000 125900 134400 136000 128160.000 6623.670

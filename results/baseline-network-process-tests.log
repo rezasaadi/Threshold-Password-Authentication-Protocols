@@ -1,0 +1,13 @@
+   Compiling upspa-unified-benchmark v0.1.0 (<repository>)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running tests\network_baselines.rs (target\debug\deps\network_baselines-1b3d863d667481ec.exe)
+
+running 3 tests
+test pastau_independent_processes_and_restart ... ok
+pastau process state: <user-home>\AppData\Local\Temp\upspa-baseline-pastau-32656-1791163219288145100
+test preserved_modern_tcp_label_connects_to_external_addresses ... ok
+augsso process state: <user-home>\AppData\Local\Temp\upspa-baseline-augsso-32656-1791163219288064300
+test augsso_independent_processes_and_restart ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+

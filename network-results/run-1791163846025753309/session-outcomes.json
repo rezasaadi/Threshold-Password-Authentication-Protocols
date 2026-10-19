@@ -1,0 +1,16 @@
+{
+  "augsso:authentication:completed:fixturefalse:warmupfalse": 2,
+  "augsso:authentication:completed:fixturefalse:warmuptrue": 1,
+  "augsso:registration:completed:fixturetrue:warmupfalse": 2,
+  "augsso:registration:completed:fixturetrue:warmuptrue": 1,
+  "pastau:authentication:completed:fixturefalse:warmupfalse": 2,
+  "pastau:authentication:completed:fixturefalse:warmuptrue": 1,
+  "pastau:registration:completed:fixturetrue:warmupfalse": 2,
+  "pastau:registration:completed:fixturetrue:warmuptrue": 1,
+  "roupspa:authentication:completed:fixturefalse:warmupfalse": 2,
+  "roupspa:authentication:completed:fixturefalse:warmuptrue": 1,
+  "roupspa:registration:completed:fixturetrue:warmupfalse": 2,
+  "roupspa:registration:completed:fixturetrue:warmuptrue": 1,
+  "roupspa:setup:completed:fixturetrue:warmupfalse": 2,
+  "roupspa:setup:completed:fixturetrue:warmuptrue": 1
+}

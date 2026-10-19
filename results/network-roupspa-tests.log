@@ -1,0 +1,16 @@
+   Compiling upspa-unified-benchmark v0.1.0 (<repository>)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.23s
+     Running tests\network_roupspa.rs (target\debug\deps\network_roupspa-d9710dcc336e4d26.exe)
+
+running 8 tests
+test clean_prewrite_discard_and_exact_resume_at_quorum_boundary ... ok
+test client_crashes_preserve_exact_unfinished_session ... ok
+test healthy_real_processes_persistence_restart_and_threshold ... ok
+test missed_whole_message_exposes_old_password_authentication_gap ... ok
+test provider_and_login_crashes_before_and_after_durable_transition ... ok
+test signed_direct_write_is_not_a_completed_account_and_all_provider_quorum_cannot_repair ... ok
+test synchronization_requires_q_other_responses_and_does_not_assert_account_completion ... ok
+test terminal_endpoint_crashes_and_identical_redelivery ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.87s
+

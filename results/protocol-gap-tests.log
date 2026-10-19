@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running tests\roupspa_protocol_gaps.rs (target\debug\deps\roupspa_protocol_gaps-04977dc860aeefae.exe)
+
+running 4 tests
+test full_write_quorum_does_not_allow_recovery_from_other_providers ... ok
+test undetected_missed_secret_write_selects_old_account_and_login_server_rejects ... ok
+test undetected_missed_password_write_allows_old_password_threshold_authentication ... ok
+test independent_synchronization_can_install_direct_write_before_login_server_store ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+

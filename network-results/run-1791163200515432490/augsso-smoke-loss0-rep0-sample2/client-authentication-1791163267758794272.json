@@ -1,0 +1,105 @@
+{
+  "scheme": "augsso",
+  "phase": "authentication",
+  "session": "77c8d32b2bed2b2166cf9333b88e8013",
+  "outcome": "completed",
+  "reason": null,
+  "metrics": {
+    "sent_bytes": 2105,
+    "received_bytes": 2643,
+    "sent_messages": 5,
+    "received_messages": 5,
+    "send_ns": 55284,
+    "receive_ns": 237057469,
+    "handler_ns": 232701008,
+    "quorum_ns": 101613022,
+    "terminal_ns": 0,
+    "retries": 0,
+    "timeouts": 0,
+    "client_ns": 148077584,
+    "end_to_end_ns": 291357444,
+    "repair_ns": 0,
+    "events": [
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 480,
+        "elapsed_ns": 8280,
+        "timestamp_unix_ns": 1791163267794305484,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "receive",
+        "bytes": 699,
+        "elapsed_ns": 51116222,
+        "timestamp_unix_ns": 1791163267845424632,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 480,
+        "elapsed_ns": 9358,
+        "timestamp_unix_ns": 1791163267794310943,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "receive",
+        "bytes": 708,
+        "elapsed_ns": 49263109,
+        "timestamp_unix_ns": 1791163267843578214,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 336,
+        "elapsed_ns": 19028,
+        "timestamp_unix_ns": 1791163267898921371,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "receive",
+        "bytes": 590,
+        "elapsed_ns": 48272824,
+        "timestamp_unix_ns": 1791163267947196681,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 327,
+        "elapsed_ns": 9611,
+        "timestamp_unix_ns": 1791163267898858582,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "receive",
+        "bytes": 599,
+        "elapsed_ns": 47409409,
+        "timestamp_unix_ns": 1791163267946272440,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.6:19100",
+        "direction": "send",
+        "bytes": 482,
+        "elapsed_ns": 9007,
+        "timestamp_unix_ns": 1791163267994415394,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.6:19100",
+        "direction": "receive",
+        "bytes": 47,
+        "elapsed_ns": 40995905,
+        "timestamp_unix_ns": 1791163268035416453,
+        "error": null
+      }
+    ]
+  }
+}

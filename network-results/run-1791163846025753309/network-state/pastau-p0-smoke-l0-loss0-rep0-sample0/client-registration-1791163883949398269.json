@@ -1,0 +1,61 @@
+{
+  "scheme": "pastau",
+  "phase": "registration",
+  "session": "c7110e350066367b523649d22d8350ba",
+  "outcome": "completed",
+  "reason": null,
+  "metrics": {
+    "sent_bytes": 1636,
+    "received_bytes": 0,
+    "sent_messages": 4,
+    "received_messages": 0,
+    "send_ns": 70511,
+    "receive_ns": 0,
+    "handler_ns": 0,
+    "quorum_ns": 2036804,
+    "terminal_ns": 0,
+    "retries": 0,
+    "timeouts": 0,
+    "client_ns": 124168093,
+    "end_to_end_ns": 126204897,
+    "repair_ns": 0,
+    "terminal_handler_ns": 0,
+    "events": [
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 414,
+        "elapsed_ns": 8798,
+        "timestamp_unix_ns": 1791163884021831256,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 399,
+        "elapsed_ns": 15954,
+        "timestamp_unix_ns": 1791163884021422101,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.4:19001",
+        "direction": "send",
+        "bytes": 413,
+        "elapsed_ns": 18438,
+        "timestamp_unix_ns": 1791163884021590735,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.5:19001",
+        "direction": "send",
+        "bytes": 410,
+        "elapsed_ns": 27321,
+        "timestamp_unix_ns": 1791163884021844200,
+        "error": null
+      }
+    ]
+  },
+  "terminal_processing_observed": null,
+  "client_measurement_unavailable": false,
+  "measurement_source": "client sockets and independent endpoint handlers"
+}

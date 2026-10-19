@@ -1,0 +1,89 @@
+{
+  "scheme": "roupspa",
+  "phase": "setup",
+  "session": "f70007e33e4c8ddb8a87f114dca18486bee480d34d97a4614f6bed766afe6e56",
+  "outcome": "completed",
+  "reason": null,
+  "metrics": {
+    "sent_bytes": 3817,
+    "received_bytes": 492,
+    "sent_messages": 4,
+    "received_messages": 4,
+    "send_ns": 50086,
+    "receive_ns": 119755706,
+    "handler_ns": 116190383,
+    "quorum_ns": 0,
+    "terminal_ns": 0,
+    "retries": 0,
+    "timeouts": 0,
+    "client_ns": 169076909,
+    "end_to_end_ns": 197295151,
+    "repair_ns": 0,
+    "events": [
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 953,
+        "elapsed_ns": 11987,
+        "timestamp_unix_ns": 1791163215445102243,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "receive",
+        "bytes": 123,
+        "elapsed_ns": 34220917,
+        "timestamp_unix_ns": 1791163215479325875,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 956,
+        "elapsed_ns": 19310,
+        "timestamp_unix_ns": 1791163215445286102,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "receive",
+        "bytes": 123,
+        "elapsed_ns": 27329768,
+        "timestamp_unix_ns": 1791163215472619937,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.4:19001",
+        "direction": "send",
+        "bytes": 951,
+        "elapsed_ns": 10372,
+        "timestamp_unix_ns": 1791163215445180483,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.4:19001",
+        "direction": "receive",
+        "bytes": 123,
+        "elapsed_ns": 29901176,
+        "timestamp_unix_ns": 1791163215475083504,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.5:19001",
+        "direction": "send",
+        "bytes": 957,
+        "elapsed_ns": 8417,
+        "timestamp_unix_ns": 1791163215445248612,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.5:19001",
+        "direction": "receive",
+        "bytes": 123,
+        "elapsed_ns": 28303845,
+        "timestamp_unix_ns": 1791163215473554428,
+        "error": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "scheme": "pastau",
+  "phase": "authentication",
+  "session": "c3f0eea4998173063b8e4114c3674845",
+  "outcome": "completed",
+  "reason": null,
+  "metrics": {
+    "sent_bytes": 1302,
+    "received_bytes": 1012,
+    "sent_messages": 3,
+    "received_messages": 3,
+    "send_ns": 304229,
+    "receive_ns": 344329256,
+    "handler_ns": 340743770,
+    "quorum_ns": 161673065,
+    "terminal_ns": 0,
+    "retries": 0,
+    "timeouts": 0,
+    "client_ns": 144031487,
+    "end_to_end_ns": 335563961,
+    "repair_ns": 0,
+    "terminal_handler_ns": 0,
+    "events": [
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 415,
+        "elapsed_ns": 228564,
+        "timestamp_unix_ns": 1791163884440035687,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "receive",
+        "bytes": 482,
+        "elapsed_ns": 156952566,
+        "timestamp_unix_ns": 1791163884596993126,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 415,
+        "elapsed_ns": 59776,
+        "timestamp_unix_ns": 1791163884439516925,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "receive",
+        "bytes": 483,
+        "elapsed_ns": 158279309,
+        "timestamp_unix_ns": 1791163884597799950,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.6:19100",
+        "direction": "send",
+        "bytes": 472,
+        "elapsed_ns": 15889,
+        "timestamp_unix_ns": 1791163884602824443,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.6:19100",
+        "direction": "receive",
+        "bytes": 47,
+        "elapsed_ns": 29097381,
+        "timestamp_unix_ns": 1791163884631924513,
+        "error": null
+      }
+    ]
+  },
+  "terminal_processing_observed": null,
+  "client_measurement_unavailable": false,
+  "measurement_source": "client sockets and independent endpoint handlers"
+}

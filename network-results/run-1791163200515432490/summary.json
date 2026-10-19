@@ -1,0 +1,44 @@
+{
+  "augsso:authentication:smoke:loss0": {
+    "all_attempt_elapsed_ns": 825914723,
+    "application_bytes": 9435,
+    "application_messages": 20,
+    "attempts": 2,
+    "completed_p50_ns": 291357444,
+    "completed_p95_ns": 534557279,
+    "denominator": "all measured attempts including unsuccessful; fixtures and warmups separately retained in raw",
+    "outcomes": {
+      "completed": 2
+    },
+    "retransmissions": 0,
+    "timeouts": 0
+  },
+  "pastau:authentication:smoke:loss0": {
+    "all_attempt_elapsed_ns": 652985916,
+    "application_bytes": 4640,
+    "application_messages": 12,
+    "attempts": 2,
+    "completed_p50_ns": 201067675,
+    "completed_p95_ns": 451918241,
+    "denominator": "all measured attempts including unsuccessful; fixtures and warmups separately retained in raw",
+    "outcomes": {
+      "completed": 2
+    },
+    "retransmissions": 0,
+    "timeouts": 0
+  },
+  "roupspa:authentication:smoke:loss0": {
+    "all_attempt_elapsed_ns": 152493509,
+    "application_bytes": 16418,
+    "application_messages": 36,
+    "attempts": 2,
+    "completed_p50_ns": 62551256,
+    "completed_p95_ns": 89942253,
+    "denominator": "all measured attempts including unsuccessful; fixtures and warmups separately retained in raw",
+    "outcomes": {
+      "completed": 2
+    },
+    "retransmissions": 0,
+    "timeouts": 0
+  }
+}

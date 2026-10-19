@@ -1,0 +1,1 @@
+Namespace inventories before and after are identical (both empty). No experiment namespaces remain.

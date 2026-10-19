@@ -1,0 +1,9 @@
+{
+  "augsso:password_update:completed:fixturefalse:warmupfalse": 1,
+  "augsso:registration:completed:fixturetrue:warmupfalse": 1,
+  "pastau:password_update:completed:fixturefalse:warmupfalse": 1,
+  "pastau:registration:completed:fixturetrue:warmupfalse": 1,
+  "roupspa:password_update:completed:fixturefalse:warmupfalse": 1,
+  "roupspa:registration:completed:fixturetrue:warmupfalse": 1,
+  "roupspa:setup:completed:fixturetrue:warmupfalse": 1
+}

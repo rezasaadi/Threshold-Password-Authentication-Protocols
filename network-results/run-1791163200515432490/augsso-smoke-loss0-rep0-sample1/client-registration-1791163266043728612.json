@@ -1,0 +1,57 @@
+{
+  "scheme": "augsso",
+  "phase": "registration",
+  "session": "4606df6833631a2578839181e65d1d0e",
+  "outcome": "completed",
+  "reason": null,
+  "metrics": {
+    "sent_bytes": 1663,
+    "received_bytes": 0,
+    "sent_messages": 4,
+    "received_messages": 0,
+    "send_ns": 50688,
+    "receive_ns": 0,
+    "handler_ns": 0,
+    "quorum_ns": 1534438,
+    "terminal_ns": 0,
+    "retries": 0,
+    "timeouts": 0,
+    "client_ns": 117144599,
+    "end_to_end_ns": 118679037,
+    "repair_ns": 0,
+    "events": [
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 415,
+        "elapsed_ns": 17156,
+        "timestamp_unix_ns": 1791163266094636296,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 417,
+        "elapsed_ns": 10396,
+        "timestamp_unix_ns": 1791163266094599587,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.4:19001",
+        "direction": "send",
+        "bytes": 415,
+        "elapsed_ns": 13327,
+        "timestamp_unix_ns": 1791163266094863275,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.5:19001",
+        "direction": "send",
+        "bytes": 416,
+        "elapsed_ns": 9809,
+        "timestamp_unix_ns": 1791163266094541161,
+        "error": null
+      }
+    ]
+  }
+}

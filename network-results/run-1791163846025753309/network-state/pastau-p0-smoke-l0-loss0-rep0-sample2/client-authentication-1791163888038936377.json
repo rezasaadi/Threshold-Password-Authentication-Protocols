@@ -1,0 +1,77 @@
+{
+  "scheme": "pastau",
+  "phase": "authentication",
+  "session": "b13acaca585ac637f385edbfbe0e20ad",
+  "outcome": "completed",
+  "reason": null,
+  "metrics": {
+    "sent_bytes": 1314,
+    "received_bytes": 1003,
+    "sent_messages": 3,
+    "received_messages": 3,
+    "send_ns": 17635,
+    "receive_ns": 39678517,
+    "handler_ns": 37506305,
+    "quorum_ns": 14996932,
+    "terminal_ns": 0,
+    "retries": 0,
+    "timeouts": 0,
+    "client_ns": 34515246,
+    "end_to_end_ns": 62607974,
+    "repair_ns": 0,
+    "terminal_handler_ns": 0,
+    "events": [
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 418,
+        "elapsed_ns": 6788,
+        "timestamp_unix_ns": 1791163888062319594,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "receive",
+        "bytes": 483,
+        "elapsed_ns": 13223794,
+        "timestamp_unix_ns": 1791163888075544820,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 418,
+        "elapsed_ns": 5033,
+        "timestamp_unix_ns": 1791163888062367942,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "receive",
+        "bytes": 473,
+        "elapsed_ns": 13961720,
+        "timestamp_unix_ns": 1791163888076329954,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.6:19100",
+        "direction": "send",
+        "bytes": 478,
+        "elapsed_ns": 5814,
+        "timestamp_unix_ns": 1791163888077807023,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.6:19100",
+        "direction": "receive",
+        "bytes": 47,
+        "elapsed_ns": 12493003,
+        "timestamp_unix_ns": 1791163888090301495,
+        "error": null
+      }
+    ]
+  },
+  "terminal_processing_observed": null,
+  "client_measurement_unavailable": false,
+  "measurement_source": "client sockets and independent endpoint handlers"
+}

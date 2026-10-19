@@ -1,0 +1,15 @@
+{
+  "arch": "x86_64",
+  "cargo": "cargo 1.93.0 (083ac5135 2025-12-15)\n",
+  "clock": "std::time::Instant; monotonic duration, Unix timestamps diagnostic only",
+  "connection_policy": "fresh_per_request; connect included in operation time",
+  "ip": "ip -V: program not found",
+  "kernel": "uname -a: program not found",
+  "machine": "lscpu : program not found",
+  "os": "windows",
+  "rust": "rustc 1.93.0 (254b59607 2026-01-19)\n",
+  "tc": "tc -V: program not found",
+  "timing": "client invocation through return; RoUpSPA terminal Delta wait included; fixture/provision/startup excluded",
+  "traffic_units": "framed application bytes actually written/read at socket API; excludes TCP/IP headers, handshake and kernel retransmissions",
+  "uid": "id : program not found"
+}

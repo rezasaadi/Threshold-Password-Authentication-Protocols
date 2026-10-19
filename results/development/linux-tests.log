@@ -1,0 +1,277 @@
+   Compiling libc v0.2.186
+   Compiling cfg-if v1.0.4
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.46
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling find-msvc-tools v0.1.9
+   Compiling shlex v2.0.1
+   Compiling cpufeatures v0.2.17
+   Compiling zerocopy v0.8.54
+   Compiling subtle v2.6.1
+   Compiling semver v1.0.28
+   Compiling opaque-debug v0.3.1
+   Compiling radium v0.7.0
+   Compiling cpufeatures v0.3.0
+   Compiling constant_time_eq v0.4.2
+   Compiling arrayvec v0.7.8
+   Compiling arrayref v0.3.9
+   Compiling tap v1.0.1
+   Compiling funty v2.0.0
+   Compiling serde_core v1.0.228
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.228
+   Compiling signature v2.2.0
+   Compiling serde_json v1.0.151
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling pkg-config v0.3.33
+   Compiling vcpkg v0.2.15
+   Compiling autocfg v1.5.1
+   Compiling foreign-types-shared v0.1.1
+   Compiling openssl v0.10.81
+   Compiling thiserror v1.0.69
+   Compiling bitflags v2.13.1
+   Compiling hex v0.4.3
+   Compiling foreign-types v0.3.2
+   Compiling wyz v0.5.1
+   Compiling ed25519 v2.2.3
+   Compiling cc v1.2.67
+   Compiling rustc_version v0.4.1
+   Compiling generic-array v0.14.7
+   Compiling num-traits v0.2.19
+   Compiling curve25519-dalek v4.1.3
+   Compiling bitvec v1.1.1
+   Compiling syn v2.0.119
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling blake3 v1.8.5
+   Compiling openssl-sys v0.9.117
+   Compiling num-integer v0.1.46
+   Compiling getrandom v0.2.17
+   Compiling rand_core v0.6.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling poly1305 v0.8.0
+   Compiling sha2 v0.10.9
+   Compiling ff v0.13.1
+   Compiling group v0.13.0
+   Compiling pairing v0.23.0
+   Compiling bls12_381 v0.8.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling rand_chacha v0.3.1
+   Compiling rand v0.8.7
+   Compiling zeroize_derive v1.5.0
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling serde_derive v1.0.228
+   Compiling thiserror-impl v1.0.69
+   Compiling openssl-macros v0.1.1
+   Compiling zeroize v1.9.0
+   Compiling cipher v0.4.4
+   Compiling chacha20 v0.9.1
+   Compiling aes v0.8.4
+   Compiling ofb v0.6.1
+   Compiling chacha20poly1305 v0.10.1
+   Compiling ed25519-dalek v2.2.0
+   Compiling x25519-dalek v2.0.1
+   Compiling pastau_bench v0.1.0 (<repository>/crates/pastau)
+   Compiling augsso_bench v0.1.0 (<repository>/crates/augsso)
+   Compiling upspa_quorum_bench v0.1.0 (<repository>/crates/upspa-quorum)
+   Compiling upspa_bench v0.1.0 (<repository>/crates/upspa)
+   Compiling num-bigint v0.4.8
+   Compiling upspa-unified-benchmark v0.1.0 (<repository>)
+   Compiling pastau_paper v0.1.0 (<repository>/pastau_paper)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.30s
+     Running unittests src/lib.rs (<build-directory>/debug/deps/augsso_bench-b79ab350d046c667)
+
+running 1 test
+test protocols::augsso::tests::roundtrip_auth_and_verify_token ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/password_update_api.rs (<build-directory>/debug/deps/password_update_api-5885c8110acb1824)
+
+running 1 test
+test exposed_password_update_authenticates_old_password_and_changes_server_key ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
+     Running unittests src/lib.rs (<build-directory>/debug/deps/pastau_bench-59f97d78ba7e1cd8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (<build-directory>/debug/deps/pastau_paper-599580ab4859d00c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/bench_paper.rs (<build-directory>/debug/deps/bench_paper-643484d6ff30115e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/bench_paper_tcp.rs (<build-directory>/debug/deps/bench_paper_tcp-e663a091c57788b3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/pastau_ssh_agent.rs (<build-directory>/debug/deps/pastau_ssh_agent-c53779964502bbee)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (<build-directory>/debug/deps/upspa_unified_benchmark-c6dd8ce4f66ffb39)
+
+running 5 tests
+test network::common::tests::intersection_boundary ... ok
+test network::common::tests::malformed_network_is_rejected ... ok
+test network::roupspa::tests::login_terminal_is_exact_session_bound_and_replayable ... ok
+test network::roupspa::tests::provider_replay_exact_session_and_restart ... ok
+test network::harness::tests::denominators_include_failures ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running unittests src/bin/bench_modern.rs (<build-directory>/debug/deps/bench_modern-b64b611908b1ba0a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/bench_modern_tcp.rs (<build-directory>/debug/deps/bench_modern_tcp-19739f94a561317a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/bench_network.rs (<build-directory>/debug/deps/bench_network-e8d540a41c3b1196)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/bench_unified.rs (<build-directory>/debug/deps/bench_unified-7585277ed5d6f810)
+
+running 13 tests
+test tests::authentication_uses_threshold_availability_not_quorum_availability ... ok
+test tests::all_required_operations_and_hyphenated_sync_aliases_parse ... ok
+test tests::default_quorum_is_the_minimum_strict_intersection_quorum ... ok
+test tests::explicit_all_retains_historical_schemes ... ok
+test tests::legacy_password_flag_cannot_change_modern_arguments ... ok
+test tests::explicit_offline_count_is_bounded_by_selected_quorum ... ok
+test tests::merge_uses_column_names_and_forces_public_scheme_name ... ok
+test tests::network_profile_is_derived_for_historical_rows ... ok
+test tests::revised_default_runs_only_upspa_and_roupspa ... ok
+test tests::roupspa_receives_explicit_quorum_and_delivery_bound ... ok
+test tests::roupspa_public_name_and_aliases_are_stable ... ok
+test tests::every_explicit_quorum_tuple_is_validated ... ok
+test tests::synchronization_rejects_a_quorum_with_no_external_donor_set ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/network_baselines.rs (<build-directory>/debug/deps/network_baselines-a37ce3ad9e690ecf)
+
+running 2 tests
+test pastau_independent_processes_and_restart ... ok
+test augsso_independent_processes_and_restart ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s
+
+     Running tests/network_transport.rs (<build-directory>/debug/deps/network_transport-5d8a7f80993aa5ae)
+
+running 6 tests
+test completed_error_reply_is_counted_as_actual_network_traffic ... ok
+test truncated_response_counts_received_prefix_without_completed_message ... ok
+test oversized_response_header_is_measured_and_rejected_before_allocation ... ok
+test one_way_send_does_not_wait_for_or_count_an_application_response ... ok
+test socket_measurements_count_exact_framed_bytes_and_fragmented_reads ... ok
+test rejected_terminal_stays_one_way_and_has_independent_failure_evidence ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running unittests src/lib.rs (<build-directory>/debug/deps/upspa_bench-cf46342680744eca)
+
+running 23 tests
+test benchmark::tests::output_schema_has_exactly_thirty_three_columns ... ok
+test protocols::login_server::tests::discard_preserves_old_verifier ... ok
+test protocols::login_server::tests::exact_prepare_and_store_replays_are_idempotent ... ok
+test protocols::login_server::tests::update_keeps_old_verifier_active_until_matching_store ... ok
+test protocols::messages::tests::password_update_encoding_binds_uid_first_and_every_required_field ... ok
+test protocols::provider::tests::pending_accounts_are_invisible_and_discard_preserves_committed ... ok
+test protocols::system::tests::provider_specific_suids_change_with_provider_and_domain ... ok
+test protocols::provider::tests::password_update_discard_preserves_the_old_root_and_share ... ok
+test protocols::provider::tests::password_update_is_tentative_idempotent_and_atomic_on_store ... ok
+test protocols::system::tests::setup_requires_all_and_rejects_duplicates ... ok
+test protocols::provider::tests::password_signature_binds_every_field ... ok
+test benchmark::tests::trace_network_model_consumes_emitted_stages ... ok
+test benchmark::tests::component_rows_report_only_measured_role_work_and_full_rows_report_all_roles ... ok
+test protocols::system::tests::failed_rollback_is_retained_until_every_accepted_provider_acknowledges_discard ... ok
+test protocols::system::tests::authentication_reports_fewer_than_threshold_valid_account_responses_after_identification ... ok
+test protocols::system::tests::failed_registration_prepare_discards_every_matching_pending_record ... ok
+test protocols::system::tests::identification_contacts_each_selected_provider_exactly_once ... ok
+test protocols::system::tests::authentication_uses_any_threshold_but_not_fewer ... ok
+test protocols::system::tests::failed_password_update_discards_only_its_matching_tentative_records ... ok
+test protocols::system::tests::partial_store_retains_family_and_retries_only_missing_acknowledgement ... ok
+test protocols::system::tests::password_update_rotates_every_share_and_preserves_root_secrets ... ok
+test protocols::system::tests::complete_phases_mutate_real_provider_and_login_server_state ... ok
+test benchmark::tests::smoke_run_emits_only_complete_thirty_three_column_upspa_rows ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running unittests src/lib.rs (<build-directory>/debug/deps/upspa_quorum_bench-212894ba195c9c48)
+
+running 5 tests
+test benchmark::tests::availability_bounds_follow_each_protocol_phase ... ok
+test benchmark::tests::processing_split_uses_instrumented_regions_and_client_residual ... ok
+test benchmark::tests::synchronization_rejects_a_full_quorum_tuple - should panic ... ok
+test benchmark::tests::quorum_phase_rejects_authentication_only_availability - should panic ... ok
+test benchmark::tests::component_rows_report_only_the_selected_instrumented_role ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests/roupspa_protocol.rs (<build-directory>/debug/deps/roupspa_protocol-6ae26c5da8583e26)
+
+running 22 tests
+test canonical_uid_encoding_is_unambiguous ... ok
+test threshold_validation_uses_strict_intersection_without_majority_tsp ... ok
+test setup_requires_all_and_duplicate_is_rejected ... ok
+test tentative_identification_is_hidden_and_store_keeps_share ... ok
+test ls_prepare_rejection_precedes_and_prevents_provider_writes ... ok
+test account_signatures_bind_every_field_and_counters_are_exact ... ok
+test prewrite_account_abort_discards_only_ls_prepare ... ok
+test account_step_targets_are_nonempty_deduplicated_and_prevalidated ... ok
+test synchronization_requires_the_recovering_provider_to_be_reachable ... ok
+test partial_write_is_unresolved_frozen_and_blocks_family ... ok
+test unresolved_password_write_blocks_and_retries_identical_tuple ... ok
+test authentication_needs_tsp_active_valid_accounts_without_writeback ... ok
+test password_step_targets_are_nonempty_and_prevalidated ... ok
+test chained_seven_two_five_account_recovery_uses_repaired_replica ... ok
+test identification_rejects_internal_counter_mismatch_and_tied_maximum ... ok
+test password_update_uses_same_shares_and_has_no_final_ack ... ok
+test synchronization_counts_valid_records_and_preserves_share ... ok
+test registration_order_shared_suid_and_terminal_is_one_way ... ok
+test identification_synchronization_verifies_positive_counter_and_keeps_share ... ok
+test identification_synchronization_can_restore_a_missing_root_without_changing_its_share ... ok
+test secret_update_is_direct_but_ls_old_verifier_stays_current_until_store ... ok
+test account_read_rejects_tied_maximum_and_internal_counter_mismatch ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/roupspa_protocol_gaps.rs (<build-directory>/debug/deps/roupspa_protocol_gaps-e041f7e14496da3d)
+
+running 4 tests
+test full_write_quorum_does_not_allow_recovery_from_other_providers ... ok
+test undetected_missed_secret_write_selects_old_account_and_login_server_rejects ... ok
+test undetected_missed_password_write_allows_old_password_threshold_authentication ... ok
+test independent_synchronization_can_install_direct_write_before_login_server_store ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+

@@ -1,0 +1,66 @@
+{
+  "roupspa:authentication:smoke:loss0": {
+    "all_attempt_elapsed_ns": 134557064,
+    "application_bytes": 6207,
+    "application_messages": 14,
+    "attempts": 1,
+    "attempts_without_client_telemetry": 0,
+    "completed_p50_ns": 134557064,
+    "completed_p95_ns": 134557064,
+    "denominator": "all measured attempts including unsuccessful; recovery phases separate; every fixture/warmup outcome also in session-outcomes.json",
+    "outcomes": {
+      "completed": 1
+    },
+    "retransmissions": 0,
+    "successes": 1,
+    "timeouts": 0,
+    "timings": {
+      "client": {
+        "p50_ns": 27386559,
+        "p95_ns": 27386559,
+        "samples": 1
+      },
+      "end_to_end": {
+        "p50_ns": 134557064,
+        "p95_ns": 134557064,
+        "samples": 1
+      },
+      "login_handler": {
+        "p50_ns": 40919919,
+        "p95_ns": 40919919,
+        "samples": 1
+      },
+      "process_wall": {
+        "p50_ns": 155980151,
+        "p95_ns": 155980151,
+        "samples": 1
+      },
+      "provider_handler": {
+        "p50_ns": 678581,
+        "p95_ns": 678581,
+        "samples": 1
+      },
+      "quorum": {
+        "p50_ns": 72170334,
+        "p95_ns": 72170334,
+        "samples": 1
+      },
+      "repair": {
+        "p50_ns": 0,
+        "p95_ns": 0,
+        "samples": 1
+      },
+      "terminal_delivery_wait": {
+        "p50_ns": 0,
+        "p95_ns": 0,
+        "samples": 1
+      },
+      "terminal_handler": {
+        "p50_ns": 40914528,
+        "p95_ns": 40914528,
+        "samples": 1
+      }
+    },
+    "traffic_note": "client socket observations plus initiated peer traffic; crashed clients use explicitly marked endpoint observations, which may omit interrupted prefixes; retry counts unavailable for killed clients"
+  }
+}

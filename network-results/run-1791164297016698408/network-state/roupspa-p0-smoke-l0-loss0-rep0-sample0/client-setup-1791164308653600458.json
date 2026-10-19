@@ -1,0 +1,93 @@
+{
+  "scheme": "roupspa",
+  "phase": "setup",
+  "session": "7b385aa1036ab79df416d18df31c9e5255ecc508eba40c3bbd8c8bb26d888c62",
+  "outcome": "completed",
+  "reason": null,
+  "metrics": {
+    "sent_bytes": 3755,
+    "received_bytes": 492,
+    "sent_messages": 4,
+    "received_messages": 4,
+    "send_ns": 194699,
+    "receive_ns": 156848162,
+    "handler_ns": 153540539,
+    "quorum_ns": 0,
+    "terminal_ns": 0,
+    "retries": 0,
+    "timeouts": 0,
+    "client_ns": 249588947,
+    "end_to_end_ns": 286963496,
+    "repair_ns": 0,
+    "terminal_handler_ns": 0,
+    "events": [
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "send",
+        "bytes": 944,
+        "elapsed_ns": 64579,
+        "timestamp_unix_ns": 1791164308829066766,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.2:19001",
+        "direction": "receive",
+        "bytes": 123,
+        "elapsed_ns": 39717531,
+        "timestamp_unix_ns": 1791164308868785779,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "send",
+        "bytes": 934,
+        "elapsed_ns": 58269,
+        "timestamp_unix_ns": 1791164308829431652,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.3:19001",
+        "direction": "receive",
+        "bytes": 123,
+        "elapsed_ns": 39298720,
+        "timestamp_unix_ns": 1791164308868731693,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.4:19001",
+        "direction": "send",
+        "bytes": 938,
+        "elapsed_ns": 50137,
+        "timestamp_unix_ns": 1791164308829314736,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.4:19001",
+        "direction": "receive",
+        "bytes": 123,
+        "elapsed_ns": 41874585,
+        "timestamp_unix_ns": 1791164308871190679,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.5:19001",
+        "direction": "send",
+        "bytes": 939,
+        "elapsed_ns": 21714,
+        "timestamp_unix_ns": 1791164308829754694,
+        "error": null
+      },
+      {
+        "endpoint": "10.231.0.5:19001",
+        "direction": "receive",
+        "bytes": 123,
+        "elapsed_ns": 35957326,
+        "timestamp_unix_ns": 1791164308865713106,
+        "error": null
+      }
+    ]
+  },
+  "terminal_processing_observed": null,
+  "client_measurement_unavailable": false,
+  "measurement_source": "client sockets and independent endpoint handlers"
+}
