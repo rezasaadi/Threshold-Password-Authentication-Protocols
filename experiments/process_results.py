@@ -38,7 +38,7 @@ def parse_modern(path: Path) -> list[dict]:
         try:
             n = int(d["nsp"])
             t = int(d["tsp"])
-            # The supplied modern runner labels constant-cost PartEval/Verify
+            # The modern runner labels constant-cost PartEval/Verify
             # rows as (0,0). Each exp1 process contains exactly one requested
             # pair, so retain that pair for the comparison table.
             if n == 0 and t == 0 and d["op"] in {"ttg_part_eval", "ttg_verify"} and file_pair:
