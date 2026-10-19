@@ -1,0 +1,142 @@
+   Compiling getrandom v0.2.17
+   Compiling ppv-lite86 v0.2.21
+   Compiling blake3 v1.8.5
+   Compiling zeroize_derive v1.5.0
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling rand_core v0.6.4
+   Compiling crypto-common v0.1.7
+   Compiling ff v0.13.1
+   Compiling digest v0.10.7
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling poly1305 v0.8.0
+   Compiling group v0.13.0
+   Compiling sha2 v0.10.9
+   Compiling pairing v0.23.0
+   Compiling rand_chacha v0.3.1
+   Compiling bls12_381 v0.8.0
+   Compiling zeroize v1.9.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling cipher v0.4.4
+   Compiling chacha20 v0.9.1
+   Compiling chacha20poly1305 v0.10.1
+   Compiling ed25519-dalek v2.2.0
+   Compiling x25519-dalek v2.0.1
+   Compiling pastau_bench v0.1.0 (<repository>\crates\pastau)
+   Compiling augsso_bench v0.1.0 (<repository>\crates\augsso)
+   Compiling upspa_quorum_bench v0.1.0 (<repository>\crates\upspa-quorum)
+   Compiling upspa_bench v0.1.0 (<repository>\crates\upspa)
+   Compiling upspa-unified-benchmark v0.1.0 (<repository>)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.57s
+     Running unittests src\lib.rs (target\debug\deps\augsso_bench-65464f561726678a.exe)
+
+running 1 test
+test protocols::augsso::tests::roundtrip_auth_and_verify_token ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running unittests src\lib.rs (target\debug\deps\pastau_bench-2eb47c812596f53c.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\bench_modern.rs (target\debug\deps\bench_modern-04b66e0985312af1.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\bench_modern_tcp.rs (target\debug\deps\bench_modern_tcp-dca5ab7827d20161.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\bench_unified.rs (target\debug\deps\bench_unified-8015ba18bdb66688.exe)
+
+running 13 tests
+test tests::all_required_operations_and_hyphenated_sync_aliases_parse ... ok
+test tests::authentication_uses_threshold_availability_not_quorum_availability ... ok
+test tests::every_explicit_quorum_tuple_is_validated ... ok
+test tests::explicit_all_retains_historical_schemes ... ok
+test tests::roupspa_receives_explicit_quorum_and_delivery_bound ... ok
+test tests::synchronization_rejects_a_quorum_with_no_external_donor_set ... ok
+test tests::network_profile_is_derived_for_historical_rows ... ok
+test tests::roupspa_public_name_and_aliases_are_stable ... ok
+test tests::merge_uses_column_names_and_forces_public_scheme_name ... ok
+test tests::default_quorum_is_the_minimum_strict_intersection_quorum ... ok
+test tests::revised_default_runs_only_upspa_and_roupspa ... ok
+test tests::explicit_offline_count_is_bounded_by_selected_quorum ... ok
+test tests::legacy_password_flag_cannot_change_modern_arguments ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\upspa_bench-c14d01b0c8241208.exe)
+
+running 23 tests
+test protocols::login_server::tests::exact_prepare_and_store_replays_are_idempotent ... ok
+test protocols::login_server::tests::update_keeps_old_verifier_active_until_matching_store ... ok
+test protocols::messages::tests::password_update_encoding_binds_uid_first_and_every_required_field ... ok
+test benchmark::tests::output_schema_has_exactly_thirty_three_columns ... ok
+test protocols::provider::tests::pending_accounts_are_invisible_and_discard_preserves_committed ... ok
+test protocols::login_server::tests::discard_preserves_old_verifier ... ok
+test protocols::provider::tests::password_update_discard_preserves_the_old_root_and_share ... ok
+test protocols::provider::tests::password_update_is_tentative_idempotent_and_atomic_on_store ... ok
+test protocols::system::tests::provider_specific_suids_change_with_provider_and_domain ... ok
+test protocols::system::tests::setup_requires_all_and_rejects_duplicates ... ok
+test protocols::provider::tests::password_signature_binds_every_field ... ok
+test benchmark::tests::trace_network_model_consumes_emitted_stages ... ok
+test protocols::system::tests::authentication_reports_fewer_than_threshold_valid_account_responses_after_identification ... ok
+test benchmark::tests::component_rows_report_only_measured_role_work_and_full_rows_report_all_roles ... ok
+test protocols::system::tests::failed_registration_prepare_discards_every_matching_pending_record ... ok
+test protocols::system::tests::failed_rollback_is_retained_until_every_accepted_provider_acknowledges_discard ... ok
+test protocols::system::tests::identification_contacts_each_selected_provider_exactly_once ... ok
+test protocols::system::tests::authentication_uses_any_threshold_but_not_fewer ... ok
+test protocols::system::tests::failed_password_update_discards_only_its_matching_tentative_records ... ok
+test protocols::system::tests::partial_store_retains_family_and_retries_only_missing_acknowledgement ... ok
+test protocols::system::tests::password_update_rotates_every_share_and_preserves_root_secrets ... ok
+test protocols::system::tests::complete_phases_mutate_real_provider_and_login_server_state ... ok
+test benchmark::tests::smoke_run_emits_only_complete_thirty_three_column_upspa_rows ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running unittests src\lib.rs (target\debug\deps\upspa_quorum_bench-7da48896c492c622.exe)
+
+running 5 tests
+test benchmark::tests::availability_bounds_follow_each_protocol_phase ... ok
+test benchmark::tests::processing_split_uses_instrumented_regions_and_client_residual ... ok
+test benchmark::tests::synchronization_rejects_a_full_quorum_tuple - should panic ... ok
+test benchmark::tests::quorum_phase_rejects_authentication_only_availability - should panic ... ok
+test benchmark::tests::component_rows_report_only_the_selected_instrumented_role ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests\roupspa_protocol.rs (target\debug\deps\roupspa_protocol-97db4dc2c8fdaabe.exe)
+
+running 22 tests
+test canonical_uid_encoding_is_unambiguous ... ok
+test threshold_validation_uses_strict_intersection_without_majority_tsp ... ok
+test setup_requires_all_and_duplicate_is_rejected ... ok
+test account_signatures_bind_every_field_and_counters_are_exact ... ok
+test tentative_identification_is_hidden_and_store_keeps_share ... ok
+test ls_prepare_rejection_precedes_and_prevents_provider_writes ... ok
+test prewrite_account_abort_discards_only_ls_prepare ... ok
+test account_step_targets_are_nonempty_deduplicated_and_prevalidated ... ok
+test partial_write_is_unresolved_frozen_and_blocks_family ... ok
+test chained_seven_two_five_account_recovery_uses_repaired_replica ... ok
+test authentication_needs_tsp_active_valid_accounts_without_writeback ... ok
+test synchronization_requires_the_recovering_provider_to_be_reachable ... ok
+test unresolved_password_write_blocks_and_retries_identical_tuple ... ok
+test password_step_targets_are_nonempty_and_prevalidated ... ok
+test password_update_uses_same_shares_and_has_no_final_ack ... ok
+test identification_rejects_internal_counter_mismatch_and_tied_maximum ... ok
+test identification_synchronization_can_restore_a_missing_root_without_changing_its_share ... ok
+test identification_synchronization_verifies_positive_counter_and_keeps_share ... ok
+test registration_order_shared_suid_and_terminal_is_one_way ... ok
+test synchronization_counts_valid_records_and_preserves_share ... ok
+test secret_update_is_direct_but_ls_old_verifier_stays_current_until_store ... ok
+test account_read_rejects_tied_maximum_and_internal_counter_mismatch ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+

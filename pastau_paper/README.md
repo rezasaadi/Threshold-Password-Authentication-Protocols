@@ -42,7 +42,7 @@ Compare these output columns with the existing modern PAS-TA-U primitive rows:
 - `ttg_combine_ms` vs `ttg_combine_t`;
 - `ttg_verify_ms` vs `ttg_verify`.
 
-Use the same host, release mode, sample count, CPU policy, and RNG timing policy. The result compares **Shoup RSA TTG** with your **BLS TTG**; it is an instantiation comparison, not a pure protocol-design comparison.
+Use the same host, release mode, sample count, CPU policy, and RNG timing policy. The result compares **Shoup RSA TTG** with the modern **BLS TTG**; it is an instantiation comparison, not a pure protocol-design comparison.
 
 ## Phase-level comparison with the PAS-TA-U paper
 
