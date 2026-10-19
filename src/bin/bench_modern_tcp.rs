@@ -161,15 +161,24 @@ fn server_main(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let t = arg_usize(args, "--t", 2);
     let id = arg_usize(args, "--id", 1);
     let port = arg_usize(args, "--port", 0);
+    if t == 0 || t > n || id == 0 || id > n || port > u16::MAX as usize {
+        return Err("invalid n/t/id/port".into());
+    }
     let fx = pastau::make_fixture(n, t);
     let template = fx.servers[id - 1].clone();
+    let client_id = fx.c;
+    let verify_key = fx.vk;
+    // The preserved benchmark fixture initializes deterministic test material;
+    // retain only this endpoint's state while serving external requests.
+    drop(fx);
     let mut server = template.clone();
     let mut seed = [0u8; 32];
     seed[..8].copy_from_slice(&(id as u64).to_le_bytes());
     seed[8..16].copy_from_slice(&(n as u64).to_le_bytes());
     seed[16..24].copy_from_slice(&(t as u64).to_le_bytes());
     let mut rng = ChaCha20Rng::from_seed(seed);
-    let listener = TcpListener::bind(("127.0.0.1", port as u16))?;
+    let listen = arg(args, "--listen").unwrap_or_else(|| format!("127.0.0.1:{port}"));
+    let listener = TcpListener::bind(&listen)?;
     let (mut stream, _) = listener.accept()?;
     stream.set_nodelay(true)?;
     while let Ok(frame) = read_frame(&mut stream) {
@@ -182,7 +191,7 @@ fn server_main(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                     return Err("bad TOPRF request".into());
                 }
                 let req: [u8; 32] = frame[1..].try_into().unwrap();
-                pastau::respond_toprf_only(&server, fx.c, &req)
+                pastau::respond_toprf_only(&server, client_id, &req)
                     .ok_or("TOPRF response failed")?
                     .to_vec()
             }
@@ -193,7 +202,7 @@ fn server_main(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 let req: [u8; 32] = frame[1..33].try_into().unwrap();
                 let x: [u8; 32] = frame[33..65].try_into().unwrap();
                 encode_response(
-                    &pastau::respond(&server, fx.c, x, &req, &mut rng).ok_or("token response failed")?,
+                    &pastau::respond(&server, client_id, x, &req, &mut rng).ok_or("token response failed")?,
                 )
             }
             CMD_TOKEN_VAR => {
@@ -202,7 +211,7 @@ fn server_main(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 }
                 let req: [u8; 32] = frame[1..33].try_into().unwrap();
                 encode_response(
-                    &pastau::respond_var_payload(&server, fx.c, &frame[33..], &req, &mut rng)
+                    &pastau::respond_var_payload(&server, client_id, &frame[33..], &req, &mut rng)
                         .ok_or("variable token response failed")?,
                 )
             }
@@ -213,7 +222,7 @@ fn server_main(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 let token: pc::TtgToken = frame[1..1 + pc::TTG_TOKEN_LEN].try_into().unwrap();
                 vec![u8::from(pastau::password_update_handle(
                     &mut server,
-                    &fx.vk,
+                    &verify_key,
                     &frame[1 + pc::TTG_TOKEN_LEN..],
                     &token,
                 ))]
@@ -238,9 +247,13 @@ fn free_port() -> io::Result<u16> {
 }
 
 fn connect_retry(port: u16) -> io::Result<TcpStream> {
+    connect_retry_address(&format!("127.0.0.1:{port}"))
+}
+
+fn connect_retry_address(address: &str) -> io::Result<TcpStream> {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        match TcpStream::connect(("127.0.0.1", port)) {
+        match TcpStream::connect(address) {
             Ok(stream) => {
                 stream.set_nodelay(true)?;
                 return Ok(stream);
@@ -262,30 +275,39 @@ struct ModernTcpBench {
 }
 
 impl ModernTcpBench {
-    fn start(n: usize, t: usize) -> Result<Self, Box<dyn std::error::Error>> {
+    fn start(n: usize, t: usize, providers: Option<Vec<String>>) -> Result<Self, Box<dyn std::error::Error>> {
         let exe = env::current_exe()?;
         let mut children = Vec::with_capacity(n);
         let mut streams = Vec::with_capacity(n);
-        for id in 1..=n {
-            let port = free_port()?;
-            let child = Command::new(&exe)
-                .args([
-                    "--server",
-                    "--n",
-                    &n.to_string(),
-                    "--t",
-                    &t.to_string(),
-                    "--id",
-                    &id.to_string(),
-                    "--port",
-                    &port.to_string(),
-                ])
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::inherit())
-                .spawn()?;
-            children.push(child);
-            streams.push(connect_retry(port)?);
+        if let Some(addresses) = providers {
+            if addresses.len() != n || addresses.iter().any(|a| a.trim().is_empty()) {
+                return Err("--providers must contain exactly n comma-separated addresses".into());
+            }
+            for address in addresses {
+                streams.push(connect_retry_address(&address)?);
+            }
+        } else {
+            for id in 1..=n {
+                let port = free_port()?;
+                let child = Command::new(&exe)
+                    .args([
+                        "--server",
+                        "--n",
+                        &n.to_string(),
+                        "--t",
+                        &t.to_string(),
+                        "--id",
+                        &id.to_string(),
+                        "--port",
+                        &port.to_string(),
+                    ])
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::inherit())
+                    .spawn()?;
+                children.push(child);
+                streams.push(connect_retry(port)?);
+            }
         }
         let mut seed = [0u8; 32];
         seed[..8].copy_from_slice(&(n as u64).to_le_bytes());
@@ -485,8 +507,10 @@ impl ModernTcpBench {
 
 impl Drop for ModernTcpBench {
     fn drop(&mut self) {
-        for stream in &self.streams {
-            let _ = exchange(stream, vec![CMD_SHUTDOWN]);
+        if !self.children.is_empty() {
+            for stream in &self.streams {
+                let _ = exchange(stream, vec![CMD_SHUTDOWN]);
+            }
         }
         for child in &mut self.children {
             let _ = child.wait();
@@ -521,7 +545,8 @@ fn benchmark_main(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         return Err("invalid n/t/samples".into());
     }
 
-    let mut bench = ModernTcpBench::start(n, t)?;
+    let providers = arg(args, "--providers").map(|v| v.split(',').map(|a| a.trim().to_string()).collect());
+    let mut bench = ModernTcpBench::start(n, t, providers)?;
     bench.correctness()?;
     let password = bench.fx.password.clone();
     for _ in 0..warmup {
